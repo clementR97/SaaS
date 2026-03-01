@@ -37,7 +37,7 @@ const HeroSection = () => {
             <Button variant="default" size="lg" className="text-base px-8 py-6 rounded-full font-body font-medium">
               Prendre rendez-vous
             </Button>
-            <Button variant="outline" size="lg" className="text-base px-8 py-6 rounded-full font-body font-medium border-sand/40 text-warm-white hover:bg-warm-white/10">
+            <Button variant="outline" size="lg" className="text-base px-8 py-6 rounded-full font-body font-medium border-sand/40 text-warm-black hover:bg-warm-white/10">
               Découvrir mes services
             </Button>
           </div>

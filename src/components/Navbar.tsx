@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
+import logo from'../assets/logo.png';
 const navLinks = [
   { label: "Accueil", href: "#" },
   { label: "Services", href: "#services" },
@@ -28,9 +28,12 @@ const Navbar = () => {
       }`}
     >
       <div className="container mx-auto px-6 flex items-center justify-between">
-        <a href="#" className={`font-display text-2xl font-semibold transition-colors ${scrolled ? "text-foreground" : "text-warm-white"}`}>
+        {/* <a href="#" className={`font-display text-2xl font-semibold transition-colors ${scrolled ? "text-foreground" : "text-warm-white"}`}>
           Harmonie & Vitalité
-        </a>
+        </a> */}
+        <div className="flex shrink-0 items-center">
+          <img src={logo} alt="Your Company" className="size-20" />
+        </div>
 
         {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-8">
