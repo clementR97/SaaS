@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
 import heroImg from "@/assets/hero-wellness.jpg";
 import { Button } from "@/components/ui/button";
-
+import BookingModal from "@/components/BookingModal";
 const HeroSection = () => {
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
       {/* Background image */}
@@ -34,7 +36,7 @@ const HeroSection = () => {
             Une approche holistique alliant coaching sportif, madérothérapie, massages et naturopathie pour transformer votre corps et votre esprit.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Button variant="default" size="lg" className="text-base px-8 py-6 rounded-full font-body font-medium">
+            <Button variant="default" size="lg" className="text-base px-8 py-6 rounded-full font-body font-medium" onClick={() =>setIsBookingModalOpen(true)}>
               Prendre rendez-vous
             </Button>
             <Button variant="outline" size="lg" className="text-base px-8 py-6 rounded-full font-body font-medium border-sand/40 text-warm-black hover:bg-warm-white/10">

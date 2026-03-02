@@ -2,16 +2,19 @@ import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from'../assets/logo.png';
+import BookingModal from "@/components/BookingModal";
 const navLinks = [
   { label: "Accueil", href: "#" },
   { label: "Services", href: "#services" },
   { label: "Méthode", href: "#method" },
   { label: "Contact", href: "#contact" },
+
 ];
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -20,6 +23,7 @@ const Navbar = () => {
   }, []);
 
   return (
+    <>
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         scrolled
@@ -28,9 +32,7 @@ const Navbar = () => {
       }`}
     >
       <div className="container mx-auto px-6 flex items-center justify-between">
-        {/* <a href="#" className={`font-display text-2xl font-semibold transition-colors ${scrolled ? "text-foreground" : "text-warm-white"}`}>
-          Harmonie & Vitalité
-        </a> */}
+        
         <div className="flex shrink-0 items-center">
           <img src={logo} alt="Your Company" className="size-20" />
         </div>
@@ -48,7 +50,7 @@ const Navbar = () => {
               {link.label}
             </a>
           ))}
-          <Button size="sm" className="rounded-full font-body px-6">
+          <Button size="sm" className="rounded-full font-body px-6" onClick={() =>setIsBookingModalOpen(true)}>
             Rendez-vous
           </Button>
         </div>
@@ -76,13 +78,16 @@ const Navbar = () => {
                 {link.label}
               </a>
             ))}
-            <Button className="rounded-full font-body mt-2">
+            <Button className="rounded-full font-body mt-2" onClick={()=>{setIsBookingModalOpen(true); setMenuOpen(false);}}>
               Rendez-vous
             </Button>
           </div>
         </div>
       )}
     </nav>
+
+    <BookingModal open={isBookingModalOpen} onOpenChange={setIsBookingModalOpen} />
+    </>
   );
 };
 
