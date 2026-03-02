@@ -15,11 +15,11 @@ export default {
   	extend: {
   		fontFamily: {
   			display: [
-  				'Cormorant Garamond"',
+  				'"Cormorant Garamond"',
   				'serif'
   			],
   			body: [
-  				'Outfit"',
+  				'"Outfit"',
   				'sans-serif'
   			],
   			sans: [
