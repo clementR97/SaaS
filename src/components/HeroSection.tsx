@@ -6,6 +6,7 @@ import BookingModal from "@/components/BookingModal";
 const HeroSection = () => {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   return (
+    <>
     <section className="relative min-h-screen flex items-center overflow-hidden">
       {/* Background image */}
       <div className="absolute inset-0">
@@ -57,6 +58,8 @@ const HeroSection = () => {
         <div className="w-px h-8 bg-sand/30" />
       </motion.div>
     </section>
+    <BookingModal open={isBookingModalOpen} onOpenChange={setIsBookingModalOpen} />
+    </>
   );
 };
 

@@ -1,9 +1,13 @@
+import {useState} from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { CalendarCheck } from "lucide-react";
+import BookingModal from "@/components/BookingModal";
 
 const CtaSection = () => {
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   return (
+    <>
     <section className="py-24 md:py-32 bg-primary relative overflow-hidden">
       {/* Decorative circles */}
       <div className="absolute top-0 right-0 w-96 h-96 rounded-full bg-primary-foreground/5 -translate-y-1/2 translate-x-1/2" />
@@ -27,12 +31,15 @@ const CtaSection = () => {
           <Button
             size="lg"
             className="text-base px-10 py-6 rounded-full font-body font-medium bg-primary-foreground text-primary hover:bg-primary-foreground/90"
+            onClick={() =>setIsBookingModalOpen(true)}
           >
             Réserver ma séance découverte
           </Button>
         </motion.div>
       </div>
     </section>
+    <BookingModal open={isBookingModalOpen} onOpenChange={setIsBookingModalOpen} />
+    </>
   );
 };
 
