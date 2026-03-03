@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ChevronRight } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 /** Configuration des créneaux de réservation (modifiable) */
 const BOOKING_SLOT_CONFIG = {
@@ -134,6 +135,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [bookedSlotsIds, setBookedSlotsIds] = useState<Set<string>>(new Set());
 
   const reset = () => {
     setStep(0);
@@ -156,6 +158,21 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
   const activityType: ActivityType | null =
     selectedPrestation && PRESTATION_ACTIVITY[selectedPrestation] ? PRESTATION_ACTIVITY[selectedPrestation] : null;
 
+  const slotKey = (date: Date, timeValue: string) => `${date.toISOString().slice(0, 10)}|${timeValue}`;
+  const isSlotBooked = (date: Date, timeValue: string) => bookedSlotsIds.has(slotKey(date, timeValue));
+
+  useEffect(() => {
+    if (step !== 2 || !open || !supabase) return;
+    void supabase.rpc("get_booked_slots").then(({ data, error }) => {
+      if (error) return;
+      const set = new Set<string>();
+      (data ?? []).forEach((row: { date_rdv: string; heure_rdv: string }) => {
+        set.add(`${row.date_rdv}|${row.heure_rdv}`);
+      });
+      setBookedSlotsIds(set);
+    });
+  }, [step, open]);
+
   const isFormValid =
     form.nom.trim().length >= 2 &&
     form.prenom.trim().length >= 2 &&
@@ -177,16 +194,29 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
 
     setSubmitting(true);
     try {
-      // Enregistrement dans votre base de données (Supabase, etc.) :
-      // const payload = { prestation: selectedPrestation, session: selectedSession, date: selectedDate.toISOString().slice(0,10), time: selectedTime, nom: form.nom.trim(), prenom: form.prenom.trim(), telephone: form.telephone.trim(), paiement: form.paiement, createdAt: new Date().toISOString() };
-      // await fetch("/api/bookings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      if (supabase) {
+        const { error } = await supabase.from("bookings").insert({
+          prenom: form.prenom.trim(),
+          nom: form.nom.trim(),
+          telephone: form.telephone.trim(),
+          date_rdv: selectedDate.toISOString().slice(0, 10),
+          heure_rdv: selectedTime,
+          mode_paiement: form.paiement,
+          prestation: selectedPrestation,
+          session: selectedSession,
+        });
+        if (error) throw error;
+        setBookedSlotsIds((prev) => new Set(prev).add(slotKey(selectedDate, selectedTime)));
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
       setStep(4);
-    } catch (error) {
-      setSubmitError(
-        "Une erreur est survenue lors de l'enregistrement de votre demande. Merci de réessayer ou de nous contacter directement.",
-      );
+    } catch (err: unknown) {
+      const message =
+        err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "23505"
+          ? "Ce créneau vient d'être réservé par quelqu'un d'autre. Revenez au calendrier et choisissez un autre créneau."
+          : "Une erreur est survenue lors de l'enregistrement de votre demande. Merci de réessayer ou de nous contacter directement.";
+      setSubmitError(message);
     } finally {
       setSubmitting(false);
     }
@@ -318,9 +348,10 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                           <option value="">Choisir un créneau</option>
                           {slots.map((slot) => {
                             const isPast = isToday && slot.hour <= today.getHours();
+                            const reserved = isSlotBooked(selectedDate, slot.value);
                             return (
-                              <option key={slot.value} value={slot.value} disabled={isPast}>
-                                {slot.label}
+                              <option key={slot.value} value={slot.value} disabled={isPast || reserved}>
+                                {slot.label}{reserved ? " (réservé)" : ""}
                               </option>
                             );
                           })}
@@ -374,21 +405,23 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                         <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">
                           {slots.map((slot) => {
                             const isPast = isToday && slot.hour <= today.getHours();
+                            const reserved = isSlotBooked(selectedDate, slot.value);
+                            const disabled = isPast || reserved;
                             return (
                               <button
                                 key={slot.value}
                                 type="button"
-                                disabled={isPast}
-                                onClick={() => setSelectedTime(slot.value)}
+                                disabled={disabled}
+                                onClick={() => !disabled && setSelectedTime(slot.value)}
                                 className={`rounded-lg border px-3 py-2.5 text-sm font-body transition-all text-left ${
                                   selectedTime === slot.value
                                     ? "border-primary bg-primary text-primary-foreground"
-                                    : isPast
+                                    : disabled
                                       ? "border-border text-muted-foreground opacity-50 cursor-not-allowed"
                                       : "border-border hover:border-primary hover:bg-primary/5"
                                 }`}
                               >
-                                {slot.label}
+                                {slot.label}{reserved ? " (réservé)" : ""}
                               </button>
                             );
                           })}
