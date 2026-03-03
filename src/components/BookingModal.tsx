@@ -277,24 +277,25 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                 Choisissez une date et un créneau de {BOOKING_SLOT_CONFIG.slotDurationMinutes} min pour <span className="text-primary font-medium">{selectedSession}</span> :
               </p>
 
-              {/* Version mobile : champs natifs date + heure (créneaux selon emploi du temps) */}
+              {/* Version mobile : même calendrier que desktop (dates indisponibles grisées) + créneaux */}
               <div className="flex flex-col gap-4 md:hidden">
                 <div className="space-y-2">
-                  <Label htmlFor="booking-date-mobile" className="font-body text-sm font-medium">
-                    Date
-                  </Label>
-                  <Input
-                    id="booking-date-mobile"
-                    type="date"
-                    min={new Date().toISOString().slice(0, 10)}
-                    value={selectedDate ? selectedDate.toISOString().slice(0, 10) : ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setSelectedDate(v ? new Date(v + "T12:00:00") : undefined);
-                      setSelectedTime(null);
-                    }}
-                    className="font-body h-12 text-base rounded-xl border-border"
-                  />
+                  <Label className="font-body text-sm font-medium">Date</Label>
+                  <div className="flex justify-center w-full">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => { setSelectedDate(date); setSelectedTime(null); }}
+                      disabled={(date) => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        if (date < today) return true;
+                        if (activityType == null) return false;
+                        return isDateDisabledForActivity(date, activityType);
+                      }}
+                      className="rounded-xl border border-border bg-card shrink-0"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="booking-time-mobile" className="font-body text-sm font-medium">
@@ -333,7 +334,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                       disabled
                       className="flex h-12 w-full rounded-xl border border-border bg-background px-4 text-sm font-body opacity-50"
                     >
-                      <option value="">Sélectionnez d&apos;abord une date</option>
+                      <option value="">Sélectionnez une date ci-dessus</option>
                     </select>
                   )}
                 </div>
