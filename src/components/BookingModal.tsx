@@ -3,8 +3,72 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ChevronRight } from "lucide-react";
+
+/** Configuration des créneaux de réservation (modifiable) */
+const BOOKING_SLOT_CONFIG = {
+  slotDurationMinutes: 60,
+} as const;
+
+/** Type d'activité = type de prestation pour l'emploi du temps admin */
+export type ActivityType = "sport" | "naturopathie" | "massage" | "madero";
+
+/**
+ * Emploi du temps administrateur (jour = 0 dim, 1 lun, ..., 6 sam).
+ * Lundi/mardi: sport 9h-19h. Mercredi: naturopathie 9h-19h.
+ * Jeudi: matin naturopathie 9h-12h, après-midi/soir sport 12h-19h.
+ * Vendredi: massage 9h-19h. Samedi: massage 14h-19h.
+ */
+const ADMIN_SCHEDULE: { day: number; type: ActivityType; startHour: number; endHour: number }[] = [
+  { day: 1, type: "sport", startHour: 9, endHour: 19 },
+  { day: 2, type: "sport", startHour: 9, endHour: 19 },
+  { day: 3, type: "naturopathie", startHour: 9, endHour: 19 },
+  { day: 4, type: "naturopathie", startHour: 9, endHour: 12 },
+  { day: 4, type: "sport", startHour: 12, endHour: 19 },
+  { day: 5, type: "massage", startHour: 9, endHour: 19 },
+  { day: 6, type: "massage", startHour: 14, endHour: 19 },
+];
+
+/** Prestation (nom) → type d'activité pour le calendrier */
+const PRESTATION_ACTIVITY: Record<string, ActivityType> = {
+  "Coaching sportif personnalisé": "sport",
+  "Madérothérapie": "madero",
+  "Massage bien-être": "massage",
+  "Naturopathie": "naturopathie",
+};
+
+/** Créneaux horaires disponibles pour un jour donné et un type d'activité */
+function getTimeRangesForDay(activityType: ActivityType, dayOfWeek: number): { startHour: number; endHour: number }[] {
+  return ADMIN_SCHEDULE.filter((s) => s.day === dayOfWeek && s.type === activityType).map((s) => ({
+    startHour: s.startHour,
+    endHour: s.endHour,
+  }));
+}
+
+/** true si la date n'a aucun créneau pour ce type d'activité */
+function isDateDisabledForActivity(date: Date, activityType: ActivityType): boolean {
+  const ranges = getTimeRangesForDay(activityType, date.getDay());
+  return ranges.length === 0;
+}
+
+/** Créneaux 1h disponibles pour une date et un type d'activité (fusion des plages) */
+function getTimeSlotsForDate(date: Date, activityType: ActivityType): { value: string; label: string; hour: number }[] {
+  const ranges = getTimeRangesForDay(activityType, date.getDay());
+  const slots: { value: string; label: string; hour: number }[] = [];
+  const seen = new Set<number>();
+  for (const { startHour, endHour } of ranges) {
+    for (let h = startHour; h < endHour; h++) {
+      if (!seen.has(h)) {
+        seen.add(h);
+        slots.push({ value: `${h}h`, label: `${h}h - ${h + 1}h`, hour: h });
+      }
+    }
+  }
+  slots.sort((a, b) => a.hour - b.hour);
+  return slots;
+}
 
 const prestations = [
   {
@@ -45,7 +109,7 @@ const prestations = [
   },
 ];
 
-const paymentModes = ["Espèces", "Carte bancaire", "Virement"];
+const paymentModes = ["Espèces", "Carte bancaire"];
 
 interface BookingModalProps {
   open: boolean;
@@ -64,6 +128,8 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
   const [step, setStep] = useState(0);
   const [selectedPrestation, setSelectedPrestation] = useState<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [form, setForm] = useState({ nom: "", prenom: "", telephone: "", paiement: "" });
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -73,6 +139,8 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
     setStep(0);
     setSelectedPrestation(null);
     setSelectedSession(null);
+    setSelectedDate(undefined);
+    setSelectedTime(null);
     setForm({ nom: "", prenom: "", telephone: "", paiement: "" });
     setSubmitAttempted(false);
     setSubmitting(false);
@@ -85,6 +153,8 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
   };
 
   const currentPrestation = prestations.find((p) => p.name === selectedPrestation);
+  const activityType: ActivityType | null =
+    selectedPrestation && PRESTATION_ACTIVITY[selectedPrestation] ? PRESTATION_ACTIVITY[selectedPrestation] : null;
 
   const isFormValid =
     form.nom.trim().length >= 2 &&
@@ -101,33 +171,18 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
     setSubmitAttempted(true);
     setSubmitError(null);
 
-    if (!isFormValid || !selectedPrestation || !selectedSession || submitting) {
+    if (!isFormValid || !selectedPrestation || !selectedSession || !selectedDate || !selectedTime || submitting) {
       return;
     }
 
     setSubmitting(true);
     try {
-      // Exemple de payload à envoyer à votre API de réservation :
-      // const payload = {
-      //   prestation: selectedPrestation,
-      //   session: selectedSession,
-      //   nom: form.nom.trim(),
-      //   prenom: form.prenom.trim(),
-      //   telephone: form.telephone.trim(),
-      //   paiement: form.paiement,
-      //   createdAt: new Date().toISOString(),
-      // };
-      //
-      // await fetch("/api/bookings", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(payload),
-      // });
+      // Enregistrement dans votre base de données (Supabase, etc.) :
+      // const payload = { prestation: selectedPrestation, session: selectedSession, date: selectedDate.toISOString().slice(0,10), time: selectedTime, nom: form.nom.trim(), prenom: form.prenom.trim(), telephone: form.telephone.trim(), paiement: form.paiement, createdAt: new Date().toISOString() };
+      // await fetch("/api/bookings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
 
-      // Simulation d'un aller-retour réseau pour éviter les erreurs côté UI
       await new Promise((resolve) => setTimeout(resolve, 500));
-
-      setStep(3);
+      setStep(4);
     } catch (error) {
       setSubmitError(
         "Une erreur est survenue lors de l'enregistrement de votre demande. Merci de réessayer ou de nous contacter directement.",
@@ -139,10 +194,10 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl text-foreground">
-            {step === 3 ? "Confirmation" : "Prendre rendez-vous"}
+            {step === 4 ? "Confirmation" : "Prendre rendez-vous"}
           </DialogTitle>
         </DialogHeader>
 
@@ -192,7 +247,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
               {currentPrestation.sessions.map((s) => (
                 <button
                   key={s.name}
-                  onClick={() => { setSelectedSession(s.name); setStep(2); }}
+                  onClick={() => { setSelectedSession(s.name); setSelectedDate(undefined); setSelectedTime(null); setStep(2); }}
                   className="text-left p-4 rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition-all"
                 >
                   <span className="flex items-center justify-between font-body text-sm">
@@ -207,10 +262,162 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
             </motion.div>
           )}
 
-          {/* Step 2: Contact form */}
+          {/* Step 2: Date et heure (créneaux 1h) */}
           {step === 2 && (
             <motion.div
               key="step2"
+              variants={stepVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.3 }}
+              className="flex flex-col gap-4 mt-4"
+            >
+              <p className="font-body text-sm text-muted-foreground mb-3">
+                Choisissez une date et un créneau de {BOOKING_SLOT_CONFIG.slotDurationMinutes} min pour <span className="text-primary font-medium">{selectedSession}</span> :
+              </p>
+
+              {/* Version mobile : champs natifs date + heure (créneaux selon emploi du temps) */}
+              <div className="flex flex-col gap-4 md:hidden">
+                <div className="space-y-2">
+                  <Label htmlFor="booking-date-mobile" className="font-body text-sm font-medium">
+                    Date
+                  </Label>
+                  <Input
+                    id="booking-date-mobile"
+                    type="date"
+                    min={new Date().toISOString().slice(0, 10)}
+                    value={selectedDate ? selectedDate.toISOString().slice(0, 10) : ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSelectedDate(v ? new Date(v + "T12:00:00") : undefined);
+                      setSelectedTime(null);
+                    }}
+                    className="font-body h-12 text-base rounded-xl border-border"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="booking-time-mobile" className="font-body text-sm font-medium">
+                    Heure (créneau {BOOKING_SLOT_CONFIG.slotDurationMinutes} min)
+                  </Label>
+                  {selectedDate && activityType ? (
+                    (() => {
+                      const slots = getTimeSlotsForDate(selectedDate, activityType);
+                      const today = new Date();
+                      const isToday = selectedDate.toDateString() === today.toDateString();
+                      return slots.length === 0 ? (
+                        <p className="font-body text-sm text-muted-foreground py-4 text-center">Aucun créneau ce jour pour cette prestation.</p>
+                      ) : (
+                        <select
+                          id="booking-time-mobile"
+                          value={selectedTime ?? ""}
+                          onChange={(e) => setSelectedTime(e.target.value || null)}
+                          className="flex h-12 w-full rounded-xl border border-border bg-background px-4 text-sm font-body ring-offset-background focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                        >
+                          <option value="">Choisir un créneau</option>
+                          {slots.map((slot) => {
+                            const isPast = isToday && slot.hour <= today.getHours();
+                            return (
+                              <option key={slot.value} value={slot.value} disabled={isPast}>
+                                {slot.label}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      );
+                    })()
+                  ) : (
+                    <select
+                      id="booking-time-mobile"
+                      value=""
+                      disabled
+                      className="flex h-12 w-full rounded-xl border border-border bg-background px-4 text-sm font-body opacity-50"
+                    >
+                      <option value="">Sélectionnez d&apos;abord une date</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* Version desktop : calendrier + grille de créneaux (filtrés selon l'emploi du temps) */}
+              <div className="hidden md:grid grid-cols-[1fr_minmax(240px,280px)] gap-4 sm:gap-6 items-start">
+                <div className="flex justify-start w-full min-w-0">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={(date) => { setSelectedDate(date); setSelectedTime(null); }}
+                    disabled={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      if (date < today) return true;
+                      if (activityType == null) return false;
+                      return isDateDisabledForActivity(date, activityType);
+                    }}
+                    className="rounded-xl border border-border bg-card shrink-0"
+                  />
+                </div>
+                <div className="min-w-0 w-full rounded-xl border border-border bg-muted/30 p-4">
+                  <Label className="font-body text-sm font-medium text-foreground mb-3 block">
+                    Heure (créneau {BOOKING_SLOT_CONFIG.slotDurationMinutes} min)
+                  </Label>
+                  {selectedDate ? (
+                    (() => {
+                      const slots = activityType
+                        ? getTimeSlotsForDate(selectedDate, activityType)
+                        : [];
+                      const today = new Date();
+                      const isToday = selectedDate.toDateString() === today.toDateString();
+                      return slots.length === 0 ? (
+                        <p className="font-body text-sm text-muted-foreground py-6 text-center">Aucun créneau ce jour pour cette prestation.</p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">
+                          {slots.map((slot) => {
+                            const isPast = isToday && slot.hour <= today.getHours();
+                            return (
+                              <button
+                                key={slot.value}
+                                type="button"
+                                disabled={isPast}
+                                onClick={() => setSelectedTime(slot.value)}
+                                className={`rounded-lg border px-3 py-2.5 text-sm font-body transition-all text-left ${
+                                  selectedTime === slot.value
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : isPast
+                                      ? "border-border text-muted-foreground opacity-50 cursor-not-allowed"
+                                      : "border-border hover:border-primary hover:bg-primary/5"
+                                }`}
+                              >
+                                {slot.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <p className="font-body text-sm text-muted-foreground py-8 text-center">Sélectionnez d&apos;abord une date.</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-between mt-2">
+                <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="font-body">
+                  ← Retour
+                </Button>
+                <Button
+                  disabled={!selectedDate || !selectedTime}
+                  onClick={() => setStep(3)}
+                  className="rounded-full font-body px-6"
+                >
+                  Suivant <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Step 3: Contact form */}
+          {step === 3 && (
+            <motion.div
+              key="step3"
               variants={stepVariants}
               initial="enter"
               animate="center"
@@ -276,7 +483,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                 <p className="text-xs text-destructive mt-2">{submitError}</p>
               )}
               <div className="flex justify-between mt-2">
-                <Button variant="ghost" size="sm" onClick={() => setStep(1)} className="font-body">
+                <Button variant="ghost" size="sm" onClick={() => setStep(2)} className="font-body">
                   ← Retour
                 </Button>
                 <Button
@@ -290,10 +497,10 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
             </motion.div>
           )}
 
-          {/* Step 3: Confirmation */}
-          {step === 3 && (
+          {/* Step 4: Confirmation */}
+          {step === 4 && (
             <motion.div
-              key="step3"
+              key="step4"
               variants={stepVariants}
               initial="enter"
               animate="center"
@@ -315,7 +522,11 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                 </h3>
                 <p className="font-body text-muted-foreground text-sm leading-relaxed">
                   Merci <span className="font-medium text-foreground">{form.prenom}</span>, votre rendez-vous pour{" "}
-                  <span className="font-medium text-primary">{selectedSession}</span> a bien été enregistré.
+                  <span className="font-medium text-primary">{selectedSession}</span>
+                  {selectedDate && selectedTime && (
+                    <> le <span className="font-medium text-foreground">{selectedDate.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span> à <span className="font-medium text-foreground">{selectedTime}</span></>
+                  )}{" "}
+                  a bien été enregistré.
                   Nous vous contacterons au <span className="font-medium text-foreground">{form.telephone}</span>.
                 </p>
               </div>

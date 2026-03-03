@@ -3,12 +3,7 @@
 /* Charger le thème (couleurs, etc.) depuis tailwind.config.ts */
 @config "../tailwind.config.ts";
 
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Outfit:wght@300;400;500;600&display=swap');
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap");
+/* Polices chargées via <link> dans index.html (non bloquant pour Safari) */
 
 @layer base {
   :root {
@@ -130,9 +125,14 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
   }
 
   h1, h2, h3, h4, h5, h6 {
