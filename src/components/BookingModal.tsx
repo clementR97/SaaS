@@ -7,108 +7,12 @@ import { Calendar } from "@/components/ui/calendar";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-
-/** Configuration des créneaux de réservation (modifiable) */
-const BOOKING_SLOT_CONFIG = {
-  slotDurationMinutes: 60,
-} as const;
-
-/** Type d'activité = type de prestation pour l'emploi du temps admin */
-export type ActivityType = "sport" | "naturopathie" | "massage" | "madero";
-
-/**
- * Emploi du temps administrateur (jour = 0 dim, 1 lun, ..., 6 sam).
- * Lundi/mardi: sport 9h-19h. Mercredi: naturopathie 9h-19h.
- * Jeudi: matin naturopathie 9h-12h, après-midi/soir sport 12h-19h.
- * Vendredi: massage 9h-19h. Samedi: massage 14h-19h.
- */
-const ADMIN_SCHEDULE: { day: number; type: ActivityType; startHour: number; endHour: number }[] = [
-  { day: 1, type: "sport", startHour: 9, endHour: 19 },
-  { day: 2, type: "sport", startHour: 9, endHour: 19 },
-  { day: 3, type: "naturopathie", startHour: 9, endHour: 19 },
-  { day: 4, type: "naturopathie", startHour: 9, endHour: 12 },
-  { day: 4, type: "sport", startHour: 12, endHour: 19 },
-  { day: 5, type: "massage", startHour: 9, endHour: 19 },
-  { day: 6, type: "massage", startHour: 14, endHour: 19 },
-];
-
-/** Prestation (nom) → type d'activité pour le calendrier */
-const PRESTATION_ACTIVITY: Record<string, ActivityType> = {
-  "Coaching sportif personnalisé": "sport",
-  "Madérothérapie": "madero",
-  "Massage bien-être": "massage",
-  "Naturopathie": "naturopathie",
-};
-
-/** Créneaux horaires disponibles pour un jour donné et un type d'activité */
-function getTimeRangesForDay(activityType: ActivityType, dayOfWeek: number): { startHour: number; endHour: number }[] {
-  return ADMIN_SCHEDULE.filter((s) => s.day === dayOfWeek && s.type === activityType).map((s) => ({
-    startHour: s.startHour,
-    endHour: s.endHour,
-  }));
-}
-
-/** true si la date n'a aucun créneau pour ce type d'activité */
-function isDateDisabledForActivity(date: Date, activityType: ActivityType): boolean {
-  const ranges = getTimeRangesForDay(activityType, date.getDay());
-  return ranges.length === 0;
-}
-
-/** Créneaux 1h disponibles pour une date et un type d'activité (fusion des plages) */
-function getTimeSlotsForDate(date: Date, activityType: ActivityType): { value: string; label: string; hour: number }[] {
-  const ranges = getTimeRangesForDay(activityType, date.getDay());
-  const slots: { value: string; label: string; hour: number }[] = [];
-  const seen = new Set<number>();
-  for (const { startHour, endHour } of ranges) {
-    for (let h = startHour; h < endHour; h++) {
-      if (!seen.has(h)) {
-        seen.add(h);
-        slots.push({ value: `${h}h`, label: `${h}h - ${h + 1}h`, hour: h });
-      }
-    }
-  }
-  slots.sort((a, b) => a.hour - b.hour);
-  return slots;
-}
-
-const prestations = [
-  {
-    name: "Coaching sportif personnalisé",
-    sessions: [
-      { name: "Séance individuelle 1h", price: "60 €" },
-      { name: "Pack 5 séances", price: "270 €" },
-      { name: "Pack 10 séances", price: "500 €" },
-    ],
-  },
-  {
-    name: "Madérothérapie",
-    sessions: [
-      { name: "Séance madérothérapie corps", price: "80 €" },
-      { name: "Séance madérothérapie ventre", price: "50 €" },
-      { name: "Séance madérothérapie cuisses & fessiers", price: "65 €" },
-      { name: "Cure 5 séances corps", price: "350 €" },
-      { name: "Cure 10 séances corps", price: "650 €" },
-    ],
-  },
-  {
-    name: "Massage bien-être",
-    sessions: [
-      { name: "Massage relaxant corps entier", price: "70 €" },
-      { name: "Massage dos & nuque", price: "40 €" },
-      { name: "Massage sportif récupération", price: "75 €" },
-      { name: "Massage aux pierres chaudes", price: "85 €" },
-      { name: "Massage drainant jambes légères", price: "55 €" },
-      { name: "Massage visage & crâne", price: "35 €" },
-    ],
-  },
-  {
-    name: "Naturopathie",
-    sessions: [
-      { name: "Consultation initiale 1h30", price: "80 €" },
-      { name: "Consultation de suivi 1h", price: "55 €" },
-    ],
-  },
-];
+import { useBookingConfig } from "@/hooks/useBookingConfig";
+import type { ActivityType } from "@/types/booking";
+import {
+  getTimeSlotsForDate,
+  isDateDisabledForActivity,
+} from "@/utils/bookingSlots";
 
 const paymentModes = ["Espèces", "Carte bancaire"];
 
@@ -126,6 +30,7 @@ const stepVariants = {
 };
 
 const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
+  const { config, loading: configLoading } = useBookingConfig();
   const [step, setStep] = useState(0);
   const [selectedPrestation, setSelectedPrestation] = useState<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
@@ -154,9 +59,10 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
     onOpenChange(val);
   };
 
+  const prestations = config.prestations;
   const currentPrestation = prestations.find((p) => p.name === selectedPrestation);
   const activityType: ActivityType | null =
-    selectedPrestation && PRESTATION_ACTIVITY[selectedPrestation] ? PRESTATION_ACTIVITY[selectedPrestation] : null;
+    selectedPrestation && config.prestationActivity[selectedPrestation] ? config.prestationActivity[selectedPrestation] : null;
 
   const slotKey = (date: Date, timeValue: string) => `${date.toISOString().slice(0, 10)}|${timeValue}`;
   const isSlotBooked = (date: Date, timeValue: string) => bookedSlotsIds.has(slotKey(date, timeValue));
@@ -231,6 +137,9 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
           </DialogTitle>
         </DialogHeader>
 
+        {configLoading ? (
+          <p className="font-body text-muted-foreground py-6">Chargement de la configuration…</p>
+        ) : (
         <AnimatePresence mode="wait">
           {/* Step 0: Choose prestation */}
           {step === 0 && (
@@ -304,7 +213,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
               className="flex flex-col gap-4 mt-4"
             >
               <p className="font-body text-sm text-muted-foreground mb-3">
-                Choisissez une date et un créneau de {BOOKING_SLOT_CONFIG.slotDurationMinutes} min pour <span className="text-primary font-medium">{selectedSession}</span> :
+                Choisissez une date et un créneau pour <span className="text-primary font-medium">{selectedSession}</span> :
               </p>
 
               {/* Version mobile : même calendrier que desktop (dates indisponibles grisées) + créneaux */}
@@ -321,7 +230,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                         today.setHours(0, 0, 0, 0);
                         if (date < today) return true;
                         if (activityType == null) return false;
-                        return isDateDisabledForActivity(date, activityType);
+                        return isDateDisabledForActivity(date, activityType, config.adminSchedule, config.slotDurationMinutes);
                       }}
                       className="rounded-xl border border-border bg-card shrink-0"
                     />
@@ -329,13 +238,14 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="booking-time-mobile" className="font-body text-sm font-medium">
-                    Heure (créneau {BOOKING_SLOT_CONFIG.slotDurationMinutes} min)
+                    Heure
                   </Label>
                   {selectedDate && activityType ? (
                     (() => {
-                      const slots = getTimeSlotsForDate(selectedDate, activityType);
+                      const slots = getTimeSlotsForDate(selectedDate, activityType, config.adminSchedule, config.slotDurationMinutes);
                       const today = new Date();
                       const isToday = selectedDate.toDateString() === today.toDateString();
+                      const nowMin = today.getHours() * 60 + today.getMinutes();
                       return slots.length === 0 ? (
                         <p className="font-body text-sm text-muted-foreground py-4 text-center">Aucun créneau ce jour pour cette prestation.</p>
                       ) : (
@@ -347,7 +257,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                         >
                           <option value="">Choisir un créneau</option>
                           {slots.map((slot) => {
-                            const isPast = isToday && slot.hour <= today.getHours();
+                            const isPast = isToday && slot.minutesFromMidnight < nowMin;
                             const reserved = isSlotBooked(selectedDate, slot.value);
                             return (
                               <option key={slot.value} value={slot.value} disabled={isPast || reserved}>
@@ -383,28 +293,29 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                       today.setHours(0, 0, 0, 0);
                       if (date < today) return true;
                       if (activityType == null) return false;
-                      return isDateDisabledForActivity(date, activityType);
+                      return isDateDisabledForActivity(date, activityType, config.adminSchedule, config.slotDurationMinutes);
                     }}
                     className="rounded-xl border border-border bg-card shrink-0"
                   />
                 </div>
                 <div className="min-w-0 w-full rounded-xl border border-border bg-muted/30 p-4">
                   <Label className="font-body text-sm font-medium text-foreground mb-3 block">
-                    Heure (créneau {BOOKING_SLOT_CONFIG.slotDurationMinutes} min)
+                    Heure
                   </Label>
                   {selectedDate ? (
                     (() => {
                       const slots = activityType
-                        ? getTimeSlotsForDate(selectedDate, activityType)
+                        ? getTimeSlotsForDate(selectedDate, activityType, config.adminSchedule, config.slotDurationMinutes)
                         : [];
                       const today = new Date();
                       const isToday = selectedDate.toDateString() === today.toDateString();
+                      const nowMin = today.getHours() * 60 + today.getMinutes();
                       return slots.length === 0 ? (
                         <p className="font-body text-sm text-muted-foreground py-6 text-center">Aucun créneau ce jour pour cette prestation.</p>
                       ) : (
                         <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">
                           {slots.map((slot) => {
-                            const isPast = isToday && slot.hour <= today.getHours();
+                            const isPast = isToday && slot.minutesFromMidnight < nowMin;
                             const reserved = isSlotBooked(selectedDate, slot.value);
                             const disabled = isPast || reserved;
                             return (
@@ -570,6 +481,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
             </motion.div>
           )}
         </AnimatePresence>
+        )}
       </DialogContent>
     </Dialog>
   );

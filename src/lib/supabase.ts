@@ -10,10 +10,12 @@ export type BookingRow = {
   prenom: string;
   nom: string;
   telephone: string;
+  email?: string;
   date_rdv: string;
   heure_rdv: string;
   mode_paiement: string;
   prestation: string;
   session: string;
+  statut_paiement?: string;
   created_at?: string;
 };
