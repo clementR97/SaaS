@@ -17,5 +17,6 @@ export type BookingRow = {
   prestation: string;
   session: string;
   statut_paiement?: string;
+  google_event_id?: string | null;
   created_at?: string;
 };

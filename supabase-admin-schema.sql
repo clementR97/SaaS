@@ -6,6 +6,8 @@ alter table public.bookings add column if not exists statut_paiement text not nu
 
 -- Colonne email si pas déjà présente (pour cohérence avec le formulaire)
 alter table public.bookings add column if not exists email text;
+-- ID événement Google Calendar (sync)
+alter table public.bookings add column if not exists google_event_id text;
 update public.bookings set email = '' where email is null;
 alter table public.bookings alter column email set default '';
 
