@@ -3,12 +3,12 @@ import { Button } from "@/components/ui/button";
 
 const FooterSection = () => {
   return (
-    <footer id="contact" className="py-16 bg-foreground text-primary-foreground/80">
-      <div className="container mx-auto px-6">
-        <div className="grid md:grid-cols-3 gap-12 mb-12">
+    <footer id="contact" className="py-12 sm:py-16 bg-foreground text-primary-foreground/80">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-8 md:mb-12">
           {/* Brand */}
           <div>
-            <h3 className="font-display text-2xl font-semibold text-primary-foreground mb-4">
+            <h3 className="font-display text-xl sm:text-2xl font-semibold text-primary-foreground mb-3 sm:mb-4">
               Harmonie & Vitalité
             </h3>
             <p className="font-body text-sm leading-relaxed text-primary-foreground/60">

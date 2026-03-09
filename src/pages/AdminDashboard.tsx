@@ -125,12 +125,19 @@ export default function AdminDashboard() {
     editBooking && editDateObj && activityType
       ? getTimeSlotsForDate(editDateObj, activityType, config.adminSchedule, config.slotDurationMinutes)
       : [];
-  const bookedSlotKeys = new Set(
-    bookings
-      .filter((b) => b.id !== editBooking?.id)
-      .map((b) => `${b.date_rdv}|${b.heure_rdv}`),
-  );
-  const isSlotBooked = (d: string, h: string) => bookedSlotKeys.has(`${d}|${h}`);
+  const quotaForEdit = activityType ? (config.activityQuota[activityType] ?? 1) : 1;
+  const countBySlot = (() => {
+    const map = new Map<string, number>();
+    for (const b of bookings) {
+      if (b.id === editBooking?.id) continue;
+      const at = b.activity_type ?? config.prestationActivity[b.prestation];
+      if (at !== activityType) continue;
+      const key = `${b.date_rdv}|${b.heure_rdv}`;
+      map.set(key, (map.get(key) ?? 0) + 1);
+    }
+    return map;
+  })();
+  const isSlotBooked = (d: string, h: string) => (countBySlot.get(`${d}|${h}`) ?? 0) >= quotaForEdit;
   const isEditDateDisabled = (dateStr: string) => {
     if (!activityType) return true;
     const d = new Date(dateStr + "T12:00:00");
@@ -339,6 +346,7 @@ function ConfigForm({
   const [prestations, setPrestations] = useState(config.prestations);
   const [adminSchedule, setAdminSchedule] = useState(config.adminSchedule);
   const [prestationActivity, setPrestationActivity] = useState(config.prestationActivity);
+  const [activityQuota, setActivityQuota] = useState(config.activityQuota);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
@@ -346,6 +354,7 @@ function ConfigForm({
     setPrestations(config.prestations);
     setAdminSchedule(config.adminSchedule);
     setPrestationActivity(config.prestationActivity);
+    setActivityQuota(config.activityQuota);
   }, [config]);
 
   const save = async () => {
@@ -359,6 +368,7 @@ function ConfigForm({
           { key: "admin_schedule", value: adminSchedule },
           { key: "slot_duration_minutes", value: 60 },
           { key: "prestation_activity", value: prestationActivity },
+          { key: "activity_quota", value: activityQuota },
         ],
         { onConflict: "key" },
       );
@@ -533,6 +543,31 @@ function ConfigForm({
           <Button variant="outline" onClick={addScheduleSlot} className="font-body">
             Ajouter un créneau
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-display">Quota par type d&apos;activité</CardTitle>
+          <CardDescription>
+            Nombre max de clients qui peuvent réserver le même créneau (même date, même heure). Ex: 2 = deux RDV possibles à 9h pour ce type.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(["sport", "naturopathie", "massage", "madero"] as const).map((type) => (
+            <div key={type} className="flex gap-2 items-center">
+              <span className="font-body text-sm w-28 capitalize">{type}</span>
+              <Input
+                type="number"
+                min={1}
+                max={20}
+                value={activityQuota[type] ?? 1}
+                onChange={(e) => setActivityQuota((q) => ({ ...q, [type]: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                className="font-body w-20 h-8"
+              />
+              <span className="font-body text-muted-foreground text-sm">client(s) max / créneau</span>
+            </div>
+          ))}
         </CardContent>
       </Card>
 

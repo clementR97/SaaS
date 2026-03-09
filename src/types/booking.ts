@@ -19,11 +19,16 @@ export interface ScheduleSlot {
   slotDurationMinutes?: number;
 }
 
+/** Quota max de clients par créneau (même date, même heure) par type d'activité. Ex: sport 2 = 2 RDV possibles à 9h. */
+export type ActivityQuota = Record<ActivityType, number>;
+
 export interface BookingConfig {
   prestations: PrestationOption[];
   adminSchedule: ScheduleSlot[];
   prestationActivity: Record<string, ActivityType>;
   slotDurationMinutes: number;
+  /** Quota par type d'activité (nombre max de réservations au même créneau). */
+  activityQuota: ActivityQuota;
 }
 
 export const DEFAULT_BOOKING_CONFIG: BookingConfig = {
@@ -49,4 +54,5 @@ export const DEFAULT_BOOKING_CONFIG: BookingConfig = {
     "Massage bien-être": "massage",
     "Naturopathie": "naturopathie",
   },
+  activityQuota: { sport: 1, naturopathie: 1, massage: 1, madero: 1 },
 };

@@ -21,24 +21,24 @@ const testimonials = [
 
 const TestimonialsSection = () => {
   return (
-    <section className="py-24 md:py-32 bg-background">
-      <div className="container mx-auto px-6">
+    <section className="py-16 sm:py-24 md:py-32 bg-background">
+      <div className="container mx-auto px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-100px" }}
           transition={{ duration: 0.7 }}
-          className="text-center mb-16"
+          className="text-center mb-10 sm:mb-16"
         >
-          <span className="font-body text-sm tracking-[0.2em] uppercase text-primary mb-4 block">
+          <span className="font-body text-xs sm:text-sm tracking-[0.2em] uppercase text-primary mb-3 sm:mb-4 block">
             Témoignages
           </span>
-          <h2 className="font-display text-4xl md:text-5xl font-semibold text-foreground">
+          <h2 className="font-display text-2xl sm:text-4xl md:text-5xl font-semibold text-foreground">
             Ils ont transformé leur quotidien
           </h2>
         </motion.div>
 
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 md:gap-8 max-w-5xl mx-auto">
           {testimonials.map((testimonial, index) => (
             <motion.div
               key={testimonial.name}
@@ -46,15 +46,15 @@ const TestimonialsSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-80px" }}
               transition={{ duration: 0.6, delay: index * 0.15 }}
-              className="p-8 rounded-2xl bg-card relative"
+              className="p-5 sm:p-6 md:p-8 rounded-xl sm:rounded-2xl bg-card relative"
             >
-              <Quote className="w-8 h-8 text-primary/15 absolute top-6 right-6" />
-              <div className="flex gap-1 mb-4">
+              <Quote className="w-6 h-6 sm:w-8 sm:h-8 text-primary/15 absolute top-4 right-4 sm:top-6 sm:right-6" />
+              <div className="flex gap-1 mb-3 sm:mb-4">
                 {Array.from({ length: testimonial.rating }).map((_, i) => (
                   <Star key={i} className="w-4 h-4 fill-primary text-primary" />
                 ))}
               </div>
-              <p className="font-body text-muted-foreground leading-relaxed mb-6 italic">
+              <p className="font-body text-sm sm:text-base text-muted-foreground leading-relaxed mb-4 sm:mb-6 italic">
                 "{testimonial.text}"
               </p>
               <p className="font-body font-medium text-foreground">

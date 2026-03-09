@@ -15,7 +15,7 @@ export function useBookingConfig(): { config: BookingConfig; loading: boolean } 
     supabase
       .from("site_config")
       .select("key, value")
-      .in("key", ["prestations", "admin_schedule", "prestation_activity", "slot_duration_minutes"])
+      .in("key", ["prestations", "admin_schedule", "prestation_activity", "slot_duration_minutes", "activity_quota"])
       .then(({ data, error }) => {
         setLoading(false);
         if (error || !data?.length) return;
@@ -25,6 +25,7 @@ export function useBookingConfig(): { config: BookingConfig; loading: boolean } 
           else if (row.key === "admin_schedule" && Array.isArray(row.value)) next.adminSchedule = row.value as BookingConfig["adminSchedule"];
           else if (row.key === "prestation_activity" && row.value && typeof row.value === "object") next.prestationActivity = row.value as BookingConfig["prestationActivity"];
           else if (row.key === "slot_duration_minutes" && typeof row.value === "number") next.slotDurationMinutes = row.value;
+          else if (row.key === "activity_quota" && row.value && typeof row.value === "object") next.activityQuota = row.value as BookingConfig["activityQuota"];
         });
         setConfig(next);
       });

@@ -8,6 +8,8 @@ alter table public.bookings add column if not exists statut_paiement text not nu
 alter table public.bookings add column if not exists email text;
 -- ID événement Google Calendar (sync)
 alter table public.bookings add column if not exists google_event_id text;
+-- Type d'activité (pour quota par créneau)
+alter table public.bookings add column if not exists activity_type text;
 update public.bookings set email = '' where email is null;
 alter table public.bookings alter column email set default '';
 
@@ -45,8 +47,38 @@ insert into public.site_config (key, value) values
     {"day":5,"type":"massage","startHour":9,"endHour":19,"slotDurationMinutes":60},
     {"day":6,"type":"massage","startHour":14,"endHour":19,"slotDurationMinutes":60}
   ]'::jsonb),
-  ('prestation_activity', '{"Coaching sportif personnalisé":"sport","Madérothérapie":"madero","Massage bien-être":"massage","Naturopathie":"naturopathie"}'::jsonb)
+  ('prestation_activity', '{"Coaching sportif personnalisé":"sport","Madérothérapie":"madero","Massage bien-être":"massage","Naturopathie":"naturopathie"}'::jsonb),
+  ('activity_quota', '{"sport":1,"naturopathie":1,"massage":1,"madero":1}'::jsonb)
 on conflict (key) do nothing;
+
+-- Quota : autoriser plusieurs RDV au même créneau (contrainte d'unicité supprimée)
+alter table public.bookings drop constraint if exists bookings_date_heure_unique;
+
+-- Fonction créneaux pleins (par type d'activité et quota)
+drop function if exists public.get_booked_slots();
+create or replace function public.get_booked_slots(p_activity_type text, p_quota int)
+returns table (date_rdv date, heure_rdv text)
+language sql security definer set search_path = public as $$
+  select b.date_rdv, b.heure_rdv from public.bookings b
+  where b.date_rdv >= current_date and b.activity_type = p_activity_type
+  group by b.date_rdv, b.heure_rdv having count(*) >= p_quota
+  union
+  select b.date_rdv, b.heure_rdv from public.bookings b
+  where b.date_rdv >= current_date and b.activity_type is null
+  group by b.date_rdv, b.heure_rdv having count(*) >= 1;
+$$;
+grant execute on function public.get_booked_slots(text, int) to anon;
+grant execute on function public.get_booked_slots(text, int) to authenticated;
+
+create or replace function public.get_slot_counts(p_activity_type text)
+returns table (date_rdv date, heure_rdv text, count bigint)
+language sql security definer set search_path = public as $$
+  select b.date_rdv, b.heure_rdv, count(*)::bigint
+  from public.bookings b
+  where b.date_rdv >= current_date and b.activity_type = p_activity_type
+  group by b.date_rdv, b.heure_rdv;
+$$;
+grant execute on function public.get_slot_counts(text) to anon;
 
 -- Admin peut lire et modifier les réservations (SELECT, UPDATE) — idempotent
 drop policy if exists "Allow authenticated select bookings" on public.bookings;
@@ -54,3 +86,7 @@ create policy "Allow authenticated select bookings" on public.bookings for selec
 
 drop policy if exists "Allow authenticated update bookings" on public.bookings;
 create policy "Allow authenticated update bookings" on public.bookings for update to authenticated using (true) with check (true);
+
+-- Permettre aussi à l'authentifié d'insérer (sinon 403 si le visiteur a une session admin ouverte)
+drop policy if exists "Allow authenticated insert bookings" on public.bookings;
+create policy "Allow authenticated insert bookings" on public.bookings for insert to authenticated with check (true);

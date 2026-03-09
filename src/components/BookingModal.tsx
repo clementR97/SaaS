@@ -40,7 +40,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [bookedSlotsIds, setBookedSlotsIds] = useState<Set<string>>(new Set());
+  const [slotCounts, setSlotCounts] = useState<Map<string, number>>(new Map());
 
   const reset = () => {
     setStep(0);
@@ -65,19 +65,21 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
     selectedPrestation && config.prestationActivity[selectedPrestation] ? config.prestationActivity[selectedPrestation] : null;
 
   const slotKey = (date: Date, timeValue: string) => `${date.toISOString().slice(0, 10)}|${timeValue}`;
-  const isSlotBooked = (date: Date, timeValue: string) => bookedSlotsIds.has(slotKey(date, timeValue));
+  const quota = activityType ? (config.activityQuota[activityType] ?? 1) : 1;
+  const getSlotCount = (date: Date, timeValue: string) => slotCounts.get(slotKey(date, timeValue)) ?? 0;
+  const isSlotBooked = (date: Date, timeValue: string) => getSlotCount(date, timeValue) >= quota;
 
   useEffect(() => {
-    if (step !== 2 || !open || !supabase) return;
-    void supabase.rpc("get_booked_slots").then(({ data, error }) => {
+    if (step !== 2 || !open || !supabase || !activityType) return;
+    void supabase.rpc("get_slot_counts", { p_activity_type: activityType }).then(({ data, error }) => {
       if (error) return;
-      const set = new Set<string>();
-      (data ?? []).forEach((row: { date_rdv: string; heure_rdv: string }) => {
-        set.add(`${row.date_rdv}|${row.heure_rdv}`);
+      const map = new Map<string, number>();
+      (data ?? []).forEach((row: { date_rdv: string; heure_rdv: string; count: number }) => {
+        map.set(`${row.date_rdv}|${row.heure_rdv}`, Number(row.count));
       });
-      setBookedSlotsIds(set);
+      setSlotCounts(map);
     });
-  }, [step, open]);
+  }, [step, open, activityType]);
 
   const isFormValid =
     form.nom.trim().length >= 2 &&
@@ -110,9 +112,10 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
           mode_paiement: form.paiement,
           prestation: selectedPrestation,
           session: selectedSession,
+          activity_type: activityType ?? undefined,
         });
         if (error) throw error;
-        setBookedSlotsIds((prev) => new Set(prev).add(slotKey(selectedDate, selectedTime)));
+        setSlotCounts((prev) => new Map(prev).set(slotKey(selectedDate, selectedTime), getSlotCount(selectedDate, selectedTime) + 1));
       } else {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
@@ -130,9 +133,9 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full p-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="font-display text-2xl text-foreground">
+          <DialogTitle className="font-display text-xl sm:text-2xl text-foreground">
             {step === 4 ? "Confirmation" : "Prendre rendez-vous"}
           </DialogTitle>
         </DialogHeader>
@@ -259,9 +262,10 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                           {slots.map((slot) => {
                             const isPast = isToday && slot.minutesFromMidnight < nowMin;
                             const reserved = isSlotBooked(selectedDate, slot.value);
+                            const n = getSlotCount(selectedDate, slot.value);
                             return (
                               <option key={slot.value} value={slot.value} disabled={isPast || reserved}>
-                                {slot.label}{reserved ? " (réservé)" : ""}
+                                {slot.label} — {n}/{quota}{reserved ? " (complet)" : ""}
                               </option>
                             );
                           })}
@@ -313,11 +317,12 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                       return slots.length === 0 ? (
                         <p className="font-body text-sm text-muted-foreground py-6 text-center">Aucun créneau ce jour pour cette prestation.</p>
                       ) : (
-                        <div className="grid grid-cols-2 gap-2 max-h-[280px] overflow-y-auto pr-1">
+                        <div className="grid grid-cols-2 gap-1.5 sm:gap-2 max-h-[240px] sm:max-h-[280px] overflow-y-auto pr-1">
                           {slots.map((slot) => {
                             const isPast = isToday && slot.minutesFromMidnight < nowMin;
                             const reserved = isSlotBooked(selectedDate, slot.value);
                             const disabled = isPast || reserved;
+                            const n = getSlotCount(selectedDate, slot.value);
                             return (
                               <button
                                 key={slot.value}
@@ -332,7 +337,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                                       : "border-border hover:border-primary hover:bg-primary/5"
                                 }`}
                               >
-                                {slot.label}{reserved ? " (réservé)" : ""}
+                                {slot.label} — {n}/{quota}{reserved ? " (complet)" : ""}
                               </button>
                             );
                           })}

@@ -76,7 +76,7 @@ const ServicesSection = () => {
 
   }
   return (
-    <section id="services" className="py-16 sm:py-20 md:py-24 lg:py-32 bg-secondary/50">
+    <section id="services" className="py-16 sm:py-24 md:py-24 lg:py-32 bg-secondary/50">
       <div className="container mx-auto px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -105,8 +105,8 @@ const ServicesSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-80px" }}
               transition={{ duration: 0.6, delay: index * 0.15 }}
-              className={`relative rounded-xl sm:rounded-2xl overflow-hidden ${service.flippable ? "cursor-pointer" : ""}`}
-              style={{ perspective: "1280px", minHeight: "min(680px, 85vh)" }}
+              className={`relative rounded-xl sm:rounded-2xl overflow-hidden min-h-[min(480px,85vh)] sm:min-h-[min(500px,80vh)] md:min-h-[min(680px,85vh)] ${service.flippable ? "cursor-pointer" : ""}`}
+              style={{ perspective: "1280px" }}
               onClick={()=>{handleCardClick(service.title, service.flippable)}}
             >
               <motion.div

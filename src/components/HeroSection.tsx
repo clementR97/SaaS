@@ -20,27 +20,27 @@ const HeroSection = () => {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 container mx-auto px-6 py-24">
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 py-16 sm:py-20 md:py-24">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.9, ease: "easeOut" }}
           className="max-w-2xl"
         >
-          <span className="inline-block font-body text-sm tracking-[0.3em] uppercase text-sage-light mb-6">
+          <span className="inline-block font-body text-xs sm:text-sm tracking-[0.2em] sm:tracking-[0.3em] uppercase text-sage-light mb-4 sm:mb-6">
             Coach sportif · Bien-être · Naturopathie
           </span>
-          <h1 className="font-display text-5xl md:text-7xl font-semibold leading-[1.1] text-warm-white mb-6 text-balance">
+          <h1 className="font-display text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold leading-[1.15] text-warm-white mb-4 sm:mb-6 text-balance">
             Révélez la meilleure version de vous-même
           </h1>
-          <p className="font-body text-lg md:text-xl text-sand leading-relaxed mb-10 max-w-lg">
+          <p className="font-body text-base sm:text-lg md:text-xl text-sand leading-relaxed mb-8 sm:mb-10 max-w-lg">
             Une approche holistique alliant coaching sportif, madérothérapie, massages et naturopathie pour transformer votre corps et votre esprit.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button variant="default" size="lg" className="text-base px-8 py-6 rounded-full font-body font-medium" onClick={() =>setIsBookingModalOpen(true)}>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <Button variant="default" size="lg" className="text-sm sm:text-base px-6 sm:px-8 py-5 sm:py-6 rounded-full font-body font-medium w-full sm:w-auto" onClick={() =>setIsBookingModalOpen(true)}>
               Prendre rendez-vous
             </Button>
-            <Button variant="outline" size="lg" className="text-base px-8 py-6 rounded-full font-body font-medium border-sand/40 text-warm-black hover:bg-warm-white/10">
+            <Button variant="outline" size="lg" className="text-sm sm:text-base px-6 sm:px-8 py-5 sm:py-6 rounded-full font-body font-medium border-sand/40 text-warm-black hover:bg-warm-white/10 w-full sm:w-auto">
               Découvrir mes services
             </Button>
           </div>
