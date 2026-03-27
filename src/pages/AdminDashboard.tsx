@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
-import type { BookingRow } from "@/lib/supabase";
-import { useBookingConfig } from "@/hooks/useBookingConfig";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase, BOOKINGS_LIST_COLUMNS, type BookingRow } from "@/lib/supabase";
+import { useBookingConfig, BOOKING_CONFIG_QUERY_KEY } from "@/hooks/useBookingConfig";
 import type { ActivityType, BookingConfig } from "@/types/booking";
 import { getTimeSlotsForDate, isDateDisabledForActivity } from "@/utils/bookingSlots";
 import { Button } from "@/components/ui/button";
@@ -73,7 +73,7 @@ export default function AdminDashboard() {
     setLoading(true);
     const { data, error } = await supabase
       .from("bookings")
-      .select("*")
+      .select(BOOKINGS_LIST_COLUMNS)
       .gte("date_rdv", today())
       .order("date_rdv", { ascending: true })
       .order("heure_rdv", { ascending: true });
@@ -246,11 +246,7 @@ export default function AdminDashboard() {
           </TabsContent>
 
           <TabsContent value="config">
-            <ConfigForm
-              config={config}
-              loading={configLoading}
-              onSaved={() => {}}
-            />
+            <ConfigForm config={config} loading={configLoading} />
           </TabsContent>
         </Tabs>
       </main>
@@ -334,15 +330,8 @@ export default function AdminDashboard() {
   );
 }
 
-function ConfigForm({
-  config,
-  loading,
-  onSaved,
-}: {
-  config: BookingConfig;
-  loading: boolean;
-  onSaved: () => void;
-}) {
+function ConfigForm({ config, loading }: { config: BookingConfig; loading: boolean }) {
+  const queryClient = useQueryClient();
   const [prestations, setPrestations] = useState(config.prestations);
   const [adminSchedule, setAdminSchedule] = useState(config.adminSchedule);
   const [prestationActivity, setPrestationActivity] = useState(config.prestationActivity);
@@ -373,7 +362,7 @@ function ConfigForm({
         { onConflict: "key" },
       );
       setMessage({ type: "ok", text: "Configuration enregistrée." });
-      onSaved();
+      void queryClient.invalidateQueries({ queryKey: BOOKING_CONFIG_QUERY_KEY });
     } catch (e) {
       setMessage({ type: "error", text: (e as Error).message ?? "Erreur" });
     } finally {

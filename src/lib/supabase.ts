@@ -5,6 +5,10 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? "";
 
 export const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
+/** Colonnes lues pour le tableau admin (évite `select('*')`). */
+export const BOOKINGS_LIST_COLUMNS =
+  "id, prenom, nom, telephone, email, date_rdv, heure_rdv, mode_paiement, prestation, session, activity_type, statut_paiement, google_event_id, created_at" as const;
+
 export type BookingRow = {
   id?: string;
   prenom: string;

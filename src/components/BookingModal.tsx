@@ -71,14 +71,18 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
 
   useEffect(() => {
     if (step !== 2 || !open || !supabase || !activityType) return;
+    let cancelled = false;
     void supabase.rpc("get_slot_counts", { p_activity_type: activityType }).then(({ data, error }) => {
-      if (error) return;
+      if (cancelled || error) return;
       const map = new Map<string, number>();
       (data ?? []).forEach((row: { date_rdv: string; heure_rdv: string; count: number }) => {
         map.set(`${row.date_rdv}|${row.heure_rdv}`, Number(row.count));
       });
       setSlotCounts(map);
     });
+    return () => {
+      cancelled = true;
+    };
   }, [step, open, activityType]);
 
   const isFormValid =
