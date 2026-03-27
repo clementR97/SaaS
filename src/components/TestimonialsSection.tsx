@@ -36,6 +36,12 @@ const TestimonialsSection = () => {
       setLoading(false);
       return;
     }
+    // Tant que la fiche Google (lieu + avis) n’est pas configurée côté client, laisser désactivé
+    // et ne pas appeler l’Edge Function (évite erreurs réseau / CORS inutiles).
+    if (import.meta.env.VITE_ENABLE_GOOGLE_REVIEWS !== "true") {
+      setLoading(false);
+      return;
+    }
     (async () => {
       try {
         const { data, error } = await supabase.functions.invoke<{ reviews: TestimonialItem[] }>("get-google-reviews");

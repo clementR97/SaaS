@@ -3,6 +3,7 @@
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
@@ -52,7 +53,7 @@ function normalizeReviews(reviews: GoogleReview[] | undefined): ReviewItem[] {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   const apiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");

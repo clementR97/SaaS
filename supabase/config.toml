@@ -1,0 +1,4 @@
+# Permet l’appel depuis le navigateur (prévol OPTIONS sans JWT).
+# Sans cela, la passerelle rejette OPTIONS avant le handler → erreur CORS.
+[functions.get-google-reviews]
+verify_jwt = false
