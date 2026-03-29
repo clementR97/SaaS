@@ -90,6 +90,21 @@ Cela renvoie toutes les URLs vers `index.html` (comportement SPA).
   - **Database** : les policies et les migrations déjà appliquées en dev doivent être appliquées sur ce projet (scripts SQL idempotents, migrations, etc.).
   - **Edge Functions** (ex. sync Google Calendar) : déploie-les sur ce projet et configure les secrets (clés Google, etc.) dans Supabase.
 
+### Ordre des scripts SQL (base de données)
+
+Sur un **nouveau** projet Supabase, l’ordre correct est :
+
+1. **Schéma de base** — équivalent de ton fichier `karuzen-schema` : dans ce repo, `supabase-schema.sql` (table `bookings`, RLS anon insert, ancienne `get_booked_slots()` sans paramètre).
+2. **Schéma admin + quota** — équivalent de ton `admin-karuzen` : dans ce repo, `supabase-admin-schema.sql` (colonnes `statut_paiement`, `email`, `activity_type`, table `site_config`, RPC `get_booked_slots(text, int)`, `get_slot_counts`, policies authentifié sur `bookings`).
+3. **Migrations incrémentales** — dossier `supabase/migrations/` (dans l’ordre des dates de fichier), ou `supabase db push` si tu utilises le CLI lié au projet.  
+   - Les fichiers `20250301…`, `20250302…`, `20250303…` recouvrent en partie ce qui est déjà dans `supabase-admin-schema.sql` : **ne pas tout réappliquer en double** sur une base déjà initialisée avec l’étape 2.
+4. **Demandes de rappel (nouveaux clients)** — `supabase/migrations/20250304000000_callback_requests.sql` (table `callback_requests`).
+
+**En pratique :**
+
+- **Projet vide** : exécuter dans le **SQL Editor** Supabase, dans cet ordre : `supabase-schema.sql` → `supabase-admin-schema.sql` → puis le contenu de `20250304000000_callback_requests.sql` (ou appliquer uniquement les migrations via `supabase db push` si tu as initialisé le dossier `supabase/` sans passer par les deux premiers fichiers à la main — dans ce cas, assure-toi qu’une migration initiale crée bien `bookings` + RLS de base).
+- **Projet déjà en prod** : n’exécuter que ce qui manque (ex. uniquement `callback_requests` si le reste est déjà là). Les scripts utilisent en général `if not exists` / `drop policy if exists` pour limiter les erreurs, mais refaire tout le bloc `site_config` + inserts peut être inutile.
+
 ---
 
 ## 5. Nom de domaine (optionnel)
