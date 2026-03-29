@@ -31,7 +31,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Calendar, Settings } from "lucide-react";
+import ServicesConfigForm from "@/components/ServicesConfigForm";
+import { LogOut, Calendar, Settings, LayoutGrid } from "lucide-react";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -168,12 +169,15 @@ export default function AdminDashboard() {
 
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="reservations" className="space-y-4">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="reservations" className="gap-2 font-body">
-              <Calendar className="h-4 w-4" /> Réservations
+          <TabsList className="grid w-full max-w-2xl grid-cols-3 gap-1 h-auto p-1">
+            <TabsTrigger value="reservations" className="gap-1.5 font-body text-xs sm:text-sm px-2 py-2">
+              <Calendar className="h-4 w-4 shrink-0" /> <span className="truncate">Réservations</span>
             </TabsTrigger>
-            <TabsTrigger value="config" className="gap-2 font-body">
-              <Settings className="h-4 w-4" /> Configuration
+            <TabsTrigger value="config" className="gap-1.5 font-body text-xs sm:text-sm px-2 py-2">
+              <Settings className="h-4 w-4 shrink-0" /> <span className="truncate">Résas & horaires</span>
+            </TabsTrigger>
+            <TabsTrigger value="services" className="gap-1.5 font-body text-xs sm:text-sm px-2 py-2">
+              <LayoutGrid className="h-4 w-4 shrink-0" /> <span className="truncate">Cartes services</span>
             </TabsTrigger>
           </TabsList>
 
@@ -247,6 +251,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="config">
             <ConfigForm config={config} loading={configLoading} />
+          </TabsContent>
+
+          <TabsContent value="services">
+            <ServicesConfigForm />
           </TabsContent>
         </Tabs>
       </main>
