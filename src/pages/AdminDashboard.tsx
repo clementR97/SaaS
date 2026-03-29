@@ -340,7 +340,6 @@ export default function AdminDashboard() {
 
 function ConfigForm({ config, loading }: { config: BookingConfig; loading: boolean }) {
   const queryClient = useQueryClient();
-  const [prestations, setPrestations] = useState(config.prestations);
   const [adminSchedule, setAdminSchedule] = useState(config.adminSchedule);
   const [prestationActivity, setPrestationActivity] = useState(config.prestationActivity);
   const [activityQuota, setActivityQuota] = useState(config.activityQuota);
@@ -348,7 +347,6 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    setPrestations(config.prestations);
     setAdminSchedule(config.adminSchedule);
     setPrestationActivity(config.prestationActivity);
     setActivityQuota(config.activityQuota);
@@ -361,7 +359,6 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
     try {
       await supabase.from("site_config").upsert(
         [
-          { key: "prestations", value: prestations },
           { key: "admin_schedule", value: adminSchedule },
           { key: "slot_duration_minutes", value: 60 },
           { key: "prestation_activity", value: prestationActivity },
@@ -376,19 +373,6 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
     } finally {
       setSaving(false);
     }
-  };
-
-  const addPrestation = () => {
-    setPrestations((p) => [...p, { name: "Nouvelle prestation", sessions: [{ name: "Séance", price: "0 €" }] }]);
-    setPrestationActivity((prev) => ({ ...prev, "Nouvelle prestation": "sport" }));
-  };
-  const updatePrestation = (index: number, name: string, sessions: { name: string; price: string }[]) => {
-    setPrestations((p) => p.map((x, i) => (i === index ? { name, sessions } : x)));
-  };
-  const removePrestation = (index: number) => {
-    const name = prestations[index]?.name;
-    setPrestations((p) => p.filter((_, i) => i !== index));
-    if (name) setPrestationActivity((prev) => { const next = { ...prev }; delete next[name]; return next; });
   };
 
   const addScheduleSlot = () => {
@@ -415,58 +399,21 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="font-display">Prestations</CardTitle>
-          <CardDescription>Liste des prestations et séances affichées dans le formulaire de réservation.</CardDescription>
+          <CardTitle className="font-display">Prestations (réservation)</CardTitle>
+          <CardDescription>
+            Les noms et les séances proposées au client sont synchronisés depuis l’onglet « Cartes services ». Modifiez-les
+            uniquement là-bas pour éviter les doublons.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {prestations.map((p, i) => (
-            <div key={i} className="rounded-lg border p-4 space-y-2">
-              <div className="flex gap-2 items-center">
-                <Input
-                  value={p.name}
-                  onChange={(e) => updatePrestation(i, e.target.value, p.sessions)}
-                  placeholder="Nom prestation"
-                  className="font-body flex-1"
-                />
-                <Button variant="outline" size="sm" onClick={() => removePrestation(i)} className="font-body">
-                  Supprimer
-                </Button>
-              </div>
-              <div className="pl-2 space-y-1">
-                {p.sessions.map((s, j) => (
-                  <div key={j} className="flex gap-2 items-center text-sm">
-                    <Input
-                      value={s.name}
-                      onChange={(e) =>
-                        updatePrestation(
-                          i,
-                          p.name,
-                          p.sessions.map((x, k) => (k === j ? { ...x, name: e.target.value } : x)),
-                        )
-                      }
-                      placeholder="Séance"
-                      className="font-body h-8 flex-1"
-                    />
-                    <Input
-                      value={s.price}
-                      onChange={(e) =>
-                        updatePrestation(
-                          i,
-                          p.name,
-                          p.sessions.map((x, k) => (k === j ? { ...x, price: e.target.value } : x)),
-                        )
-                      }
-                      placeholder="Prix"
-                      className="font-body h-8 w-24"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-          <Button variant="outline" onClick={addPrestation} className="font-body">
-            Ajouter une prestation
-          </Button>
+        <CardContent>
+          <ul className="space-y-2 text-sm font-body text-muted-foreground border rounded-lg p-4 bg-muted/30">
+            {config.prestations.map((p) => (
+              <li key={p.name}>
+                <span className="font-medium text-foreground">{p.name}</span>
+                <span className="text-muted-foreground"> — {p.sessions.length} séance(s)</span>
+              </li>
+            ))}
+          </ul>
         </CardContent>
       </Card>
 
@@ -576,12 +523,12 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          {Object.keys(prestationActivity).length === 0 && prestations.length > 0 && (
+          {Object.keys(prestationActivity).length === 0 && config.prestations.length > 0 && (
             <p className="text-sm text-muted-foreground font-body">
-              Ajoutez des correspondances. Les noms doivent correspondre exactement aux noms des prestations ci-dessus.
+              Ajoutez des correspondances. Les noms doivent correspondre exactement aux prestations listées ci-dessus.
             </p>
           )}
-          {prestations.map((p) => (
+          {config.prestations.map((p) => (
             <div key={p.name} className="flex gap-2 items-center">
               <span className="font-body text-sm w-48 truncate">{p.name}</span>
               <Select

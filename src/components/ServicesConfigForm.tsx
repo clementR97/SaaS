@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useServicesCards, SERVICES_CARDS_QUERY_KEY } from "@/hooks/useServicesCards";
+import { BOOKING_CONFIG_QUERY_KEY } from "@/hooks/useBookingConfig";
+import type { BookingConfig } from "@/types/booking";
+import { cardsToPrestations, mergePrestationActivityFromCards } from "@/utils/syncServicesToPrestations";
 import {
   DEFAULT_SERVICES_CARDS,
   newServiceCard,
@@ -87,14 +90,31 @@ export default function ServicesConfigForm() {
     setSaving(true);
     setMessage(null);
     try {
+      const booking = queryClient.getQueryData<BookingConfig>(BOOKING_CONFIG_QUERY_KEY);
+      const prestations = cardsToPrestations(draft);
+      const prestationActivity = mergePrestationActivityFromCards(draft, booking?.prestationActivity ?? {});
+
       const { error } = await supabase.from("site_config").upsert(
-        [{ key: "services_cards", value: draft }],
+        [
+          { key: "services_cards", value: draft },
+          { key: "prestations", value: prestations },
+          { key: "prestation_activity", value: prestationActivity },
+        ],
         { onConflict: "key" },
       );
       if (error) throw error;
       queryClient.setQueryData(SERVICES_CARDS_QUERY_KEY, draft);
+      queryClient.setQueryData(BOOKING_CONFIG_QUERY_KEY, (prev: BookingConfig | undefined) => {
+        const base = prev ?? booking;
+        if (!base) return prev;
+        return { ...base, prestations, prestationActivity };
+      });
       void queryClient.invalidateQueries({ queryKey: SERVICES_CARDS_QUERY_KEY });
-      setMessage({ type: "ok", text: "Cartes services enregistrées. Elles apparaissent sur la page d’accueil." });
+      void queryClient.invalidateQueries({ queryKey: BOOKING_CONFIG_QUERY_KEY });
+      setMessage({
+        type: "ok",
+        text: "Cartes enregistrées. Les prestations du formulaire de réservation sont alignées (noms, séances, tarifs affichés).",
+      });
     } catch (e) {
       setMessage({ type: "error", text: (e as Error).message ?? "Erreur d’enregistrement" });
     } finally {
@@ -116,7 +136,8 @@ export default function ServicesConfigForm() {
         <CardHeader>
           <CardTitle className="font-display">Cartes « Services » (page d’accueil)</CardTitle>
           <CardDescription>
-            Modifiez titres, textes, tarifs et packs Zen. Les images sont choisies parmi les photos déjà intégrées au site.
+            Ces cartes alimentent aussi la liste des prestations et des séances dans le formulaire « Prendre rendez-vous ». La
+            colonne « Photo » sert à proposer un type d’activité par défaut (modifiable dans Résas & horaires).
           </CardDescription>
         </CardHeader>
       </Card>
