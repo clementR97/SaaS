@@ -3,12 +3,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronRight, LogIn, UserPlus, CalendarDays, Phone } from "lucide-react";
-import type { User } from "@supabase/supabase-js";
+import { Check, ChevronRight, Phone } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { PUBLIC_CONTACT_PHONE, publicContactTelHref } from "@/lib/publicContact";
 import { useBookingConfig } from "@/hooks/useBookingConfig";
 import type { ActivityType } from "@/types/booking";
 import {
@@ -17,12 +16,6 @@ import {
 } from "@/utils/bookingSlots";
 
 const paymentModes = ["Espèces", "Carte bancaire"];
-
-/** Étapes : intro → branche (connexion / choix nouveau) → réservation 0–4 ou rappel 10–11 */
-const STEP_INTRO = -2;
-const STEP_BRANCH = -1;
-const STEP_CALLBACK = 10;
-const STEP_CALLBACK_OK = 11;
 
 interface BookingModalProps {
   open: boolean;
@@ -39,18 +32,7 @@ const stepVariants = {
 
 const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
   const { config, loading: configLoading } = useBookingConfig();
-  const [step, setStep] = useState(STEP_INTRO);
-  const [clientKind, setClientKind] = useState<"existing" | "new" | null>(null);
-  const [sessionUser, setSessionUser] = useState<User | null>(null);
-
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [loginLoading, setLoginLoading] = useState(false);
-
-  const [callbackForm, setCallbackForm] = useState({ prenom: "", nom: "", telephone: "", message: "" });
-  const [callbackSubmitting, setCallbackSubmitting] = useState(false);
-  const [callbackError, setCallbackError] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
 
   const [selectedPrestation, setSelectedPrestation] = useState<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
@@ -61,19 +43,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [slotCounts, setSlotCounts] = useState<Map<string, number>>(new Map());
-
-  useEffect(() => {
-    if (!open || !supabase) return;
-    void supabase.auth.getSession().then(({ data: { session } }) => {
-      setSessionUser(session?.user ?? null);
-    });
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSessionUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, [open]);
+  const [contactInfoOpen, setContactInfoOpen] = useState(false);
 
   const resetBookingFields = () => {
     setSelectedPrestation(null);
@@ -84,16 +54,11 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
     setSubmitAttempted(false);
     setSubmitting(false);
     setSubmitError(null);
-    setCallbackForm({ prenom: "", nom: "", telephone: "", message: "" });
-    setCallbackError(null);
   };
 
   const fullReset = () => {
-    setStep(STEP_INTRO);
-    setClientKind(null);
-    setLoginEmail("");
-    setLoginPassword("");
-    setLoginError(null);
+    setStep(0);
+    setContactInfoOpen(false);
     resetBookingFields();
   };
 
@@ -141,49 +106,6 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
     setForm((prev) => ({ ...prev, telephone: cleaned }));
   };
 
-  const handleLogin = async () => {
-    if (!supabase) return;
-    setLoginError(null);
-    setLoginLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: loginEmail.trim(),
-        password: loginPassword,
-      });
-      if (error) {
-        setLoginError(error.message);
-        return;
-      }
-      setStep(0);
-    } finally {
-      setLoginLoading(false);
-    }
-  };
-
-  const handleCallbackSubmit = async () => {
-    if (!supabase) return;
-    setCallbackError(null);
-    if (!phoneRegex.test(callbackForm.telephone.trim())) {
-      setCallbackError("Merci d’indiquer un numéro de téléphone valide.");
-      return;
-    }
-    setCallbackSubmitting(true);
-    try {
-      const { error } = await supabase.from("callback_requests").insert({
-        prenom: callbackForm.prenom.trim() || null,
-        nom: callbackForm.nom.trim() || null,
-        telephone: callbackForm.telephone.trim(),
-        message: callbackForm.message.trim() || null,
-      });
-      if (error) throw error;
-      setStep(STEP_CALLBACK_OK);
-    } catch (e) {
-      setCallbackError((e as Error).message ?? "Envoi impossible. Réessayez ou appelez-nous.");
-    } finally {
-      setCallbackSubmitting(false);
-    }
-  };
-
   const handleSubmit = async () => {
     setSubmitAttempted(true);
     setSubmitError(null);
@@ -224,11 +146,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
   };
 
   const dialogTitle = () => {
-    if (step === STEP_CALLBACK_OK) return "Demande enregistrée";
-    if (step === STEP_CALLBACK) return "Être rappelé";
-    if (step === STEP_INTRO) return "Prendre rendez-vous";
-    if (step === STEP_BRANCH && clientKind === "existing") return "Connexion";
-    if (step === STEP_BRANCH && clientKind === "new") return "Nouveau client";
+    if (step === 0) return "Choisissez une prestation";
     if (step === 4) return "Confirmation";
     return "Prendre rendez-vous";
   };
@@ -244,262 +162,6 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
           <p className="font-body text-muted-foreground py-6">Chargement de la configuration…</p>
         ) : (
           <AnimatePresence mode="wait">
-            {/* Intro : type de client */}
-            {step === STEP_INTRO && (
-              <motion.div
-                key="intro"
-                variants={stepVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3 }}
-                className="flex flex-col gap-4 mt-4"
-              >
-                <p className="font-body text-sm text-muted-foreground">
-                  Comment souhaitez-vous continuer ?
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setClientKind("existing");
-                    setStep(STEP_BRANCH);
-                  }}
-                  className="text-left p-4 rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition-all flex items-center gap-3"
-                >
-                  <LogIn className="w-5 h-5 text-primary shrink-0" />
-                  <span>
-                    <span className="font-body font-semibold text-foreground block">Client existant</span>
-                    <span className="font-body text-xs text-muted-foreground">Connectez-vous pour réserver vos séances.</span>
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setClientKind("new");
-                    setStep(STEP_BRANCH);
-                  }}
-                  className="text-left p-4 rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition-all flex items-center gap-3"
-                >
-                  <UserPlus className="w-5 h-5 text-primary shrink-0" />
-                  <span>
-                    <span className="font-body font-semibold text-foreground block">Nouveau client</span>
-                    <span className="font-body text-xs text-muted-foreground">
-                      Réservez un créneau en ligne ou demandez à être rappelé pour un premier rendez-vous.
-                    </span>
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0" />
-                </button>
-              </motion.div>
-            )}
-
-            {/* Branche : connexion OU choix nouveau client */}
-            {step === STEP_BRANCH && clientKind === "existing" && (
-              <motion.div
-                key="branch-existing"
-                variants={stepVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3 }}
-                className="flex flex-col gap-4 mt-4"
-              >
-                {sessionUser ? (
-                  <>
-                    <p className="font-body text-sm text-muted-foreground">
-                      Connecté : <span className="text-foreground font-medium">{sessionUser.email}</span>
-                    </p>
-                    <Button className="w-full font-body rounded-full" onClick={() => setStep(0)}>
-                      Continuer vers la réservation
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full font-body"
-                      onClick={() => void supabase?.auth.signOut()}
-                    >
-                      Se déconnecter
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <p className="font-body text-sm text-muted-foreground">
-                      Saisissez l’e-mail et le mot de passe reçus après votre inscription.
-                    </p>
-                    <div className="space-y-2">
-                      <Label htmlFor="login-email" className="font-body">E-mail</Label>
-                      <Input
-                        id="login-email"
-                        type="email"
-                        autoComplete="email"
-                        value={loginEmail}
-                        onChange={(e) => setLoginEmail(e.target.value)}
-                        className="font-body"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="login-password" className="font-body">Mot de passe</Label>
-                      <Input
-                        id="login-password"
-                        type="password"
-                        autoComplete="current-password"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        className="font-body"
-                      />
-                    </div>
-                    {loginError && <p className="text-sm text-destructive font-body">{loginError}</p>}
-                    <Button
-                      className="w-full font-body rounded-full"
-                      disabled={loginLoading || !loginEmail.trim() || !loginPassword}
-                      onClick={() => void handleLogin()}
-                    >
-                      {loginLoading ? "Connexion…" : "Se connecter"}
-                    </Button>
-                  </>
-                )}
-                <Button variant="ghost" size="sm" onClick={() => setStep(STEP_INTRO)} className="self-start font-body">
-                  ← Retour
-                </Button>
-              </motion.div>
-            )}
-
-            {step === STEP_BRANCH && clientKind === "new" && (
-              <motion.div
-                key="branch-new"
-                variants={stepVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3 }}
-                className="flex flex-col gap-4 mt-4"
-              >
-                <p className="font-body text-sm text-muted-foreground">Que souhaitez-vous faire ?</p>
-                <button
-                  type="button"
-                  onClick={() => setStep(0)}
-                  className="text-left p-4 rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition-all flex items-center gap-3"
-                >
-                  <CalendarDays className="w-5 h-5 text-primary shrink-0" />
-                  <span>
-                    <span className="font-body font-semibold text-foreground block">Réserver des séances</span>
-                    <span className="font-body text-xs text-muted-foreground">
-                      Choix de la prestation, puis date et heure sur le calendrier.
-                    </span>
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep(STEP_CALLBACK)}
-                  className="text-left p-4 rounded-xl border border-border hover:border-primary hover:bg-primary/5 transition-all flex items-center gap-3"
-                >
-                  <Phone className="w-5 h-5 text-primary shrink-0" />
-                  <span>
-                    <span className="font-body font-semibold text-foreground block">Être rappelé</span>
-                    <span className="font-body text-xs text-muted-foreground">
-                      Laissez votre numéro : nous vous rappelons pour convenir d’un premier rendez-vous.
-                    </span>
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground ml-auto shrink-0" />
-                </button>
-                <Button variant="ghost" size="sm" onClick={() => setStep(STEP_INTRO)} className="self-start font-body">
-                  ← Retour
-                </Button>
-              </motion.div>
-            )}
-
-            {/* Rappel téléphonique (nouveau client) */}
-            {step === STEP_CALLBACK && (
-              <motion.div
-                key="callback"
-                variants={stepVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3 }}
-                className="flex flex-col gap-4 mt-4"
-              >
-                <p className="font-body text-sm text-muted-foreground">
-                  Indiquez vos coordonnées. Nous vous contacterons pour planifier votre premier rendez-vous.
-                </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <Label htmlFor="cb-prenom" className="font-body">Prénom</Label>
-                    <Input
-                      id="cb-prenom"
-                      value={callbackForm.prenom}
-                      onChange={(e) => setCallbackForm((c) => ({ ...c, prenom: e.target.value }))}
-                      className="mt-1 font-body"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cb-nom" className="font-body">Nom</Label>
-                    <Input
-                      id="cb-nom"
-                      value={callbackForm.nom}
-                      onChange={(e) => setCallbackForm((c) => ({ ...c, nom: e.target.value }))}
-                      className="mt-1 font-body"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="cb-tel" className="font-body">Téléphone *</Label>
-                  <Input
-                    id="cb-tel"
-                    type="tel"
-                    value={callbackForm.telephone}
-                    onChange={(e) =>
-                      setCallbackForm((c) => ({ ...c, telephone: e.target.value.replace(/[^\d+\s]/g, "") }))
-                    }
-                    className="mt-1 font-body"
-                    placeholder="06 12 34 56 78"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="cb-msg" className="font-body">Message (optionnel)</Label>
-                  <Textarea
-                    id="cb-msg"
-                    value={callbackForm.message}
-                    onChange={(e) => setCallbackForm((c) => ({ ...c, message: e.target.value }))}
-                    className="mt-1 font-body min-h-[80px]"
-                    placeholder="Disponibilités, questions…"
-                  />
-                </div>
-                {callbackError && <p className="text-sm text-destructive font-body">{callbackError}</p>}
-                <div className="flex justify-between gap-2">
-                  <Button variant="ghost" size="sm" onClick={() => setStep(STEP_BRANCH)} className="font-body">
-                    ← Retour
-                  </Button>
-                  <Button
-                    className="font-body rounded-full"
-                    disabled={callbackSubmitting}
-                    onClick={() => void handleCallbackSubmit()}
-                  >
-                    {callbackSubmitting ? "Envoi…" : "Envoyer la demande"}
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-
-            {step === STEP_CALLBACK_OK && (
-              <motion.div
-                key="callback-ok"
-                variants={stepVariants}
-                initial="enter"
-                animate="center"
-                className="flex flex-col items-center gap-4 mt-6 py-2"
-              >
-                <Check className="w-12 h-12 text-primary" />
-                <p className="font-body text-center text-muted-foreground text-sm">
-                  Merci : nous vous rappelons très bientôt au numéro indiqué.
-                </p>
-                <Button onClick={() => handleClose(false)} className="rounded-full font-body">
-                  Fermer
-                </Button>
-              </motion.div>
-            )}
-
-            {/* Step 0: prestation */}
             {step === 0 && (
               <motion.div
                 key="step0"
@@ -510,7 +172,47 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                 transition={{ duration: 0.3 }}
                 className="flex flex-col gap-3 mt-4"
               >
-                <p className="font-body text-sm text-muted-foreground mb-2">Choisissez une prestation :</p>
+                <p className="font-body text-sm text-muted-foreground mb-2">
+                  Sélectionnez la prestation pour laquelle vous souhaitez réserver :
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setContactInfoOpen((v) => !v)}
+                  aria-expanded={contactInfoOpen}
+                  className="text-left p-4 rounded-xl border transition-all font-body text-sm border-border hover:border-primary hover:bg-primary/5 w-full"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-foreground font-medium">
+                      Me contacter ou plus d&apos;informations
+                    </span>
+                    <ChevronRight
+                      className={`w-4 h-4 shrink-0 text-muted-foreground transition-transform ${contactInfoOpen ? "rotate-90" : ""}`}
+                    />
+                  </span>
+                </button>
+                <AnimatePresence initial={false}>
+                  {contactInfoOpen && (
+                    <motion.div
+                      key="contact-phone"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden rounded-xl border border-primary/25 bg-primary/5 px-4 py-3"
+                    >
+                      <p className="font-body text-xs text-muted-foreground mb-2">
+                        Appelez-moi pour toute question avant réservation :
+                      </p>
+                      <a
+                        href={publicContactTelHref()}
+                        className="inline-flex items-center gap-2 font-body text-base font-semibold text-primary hover:underline"
+                      >
+                        <Phone className="w-5 h-5 shrink-0" aria-hidden />
+                        {PUBLIC_CONTACT_PHONE}
+                      </a>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 {prestations.map((p) => (
                   <button
                     key={p.name}
@@ -528,14 +230,6 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                     </span>
                   </button>
                 ))}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setStep(STEP_BRANCH)}
-                  className="mt-2 self-start font-body"
-                >
-                  ← Retour
-                </Button>
               </motion.div>
             )}
 
@@ -750,11 +444,6 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                 className="flex flex-col gap-4 mt-4"
               >
                 <p className="font-body text-sm text-muted-foreground mb-1">Vos informations :</p>
-                {sessionUser?.email && (
-                  <p className="font-body text-xs text-muted-foreground">
-                    Compte : {sessionUser.email}
-                  </p>
-                )}
                 <div className="grid gap-3">
                   <div>
                     <Label htmlFor="prenom" className="font-body">Prénom</Label>

@@ -1,5 +1,6 @@
 import { MapPin, Phone, Mail, Instagram, Facebook } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PUBLIC_CONTACT_PHONE } from "@/lib/publicContact";
 
 const FooterSection = () => {
   return (
@@ -28,7 +29,7 @@ const FooterSection = () => {
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-primary-foreground/50" />
-                <span>06 12 34 56 78</span>
+                <span>{PUBLIC_CONTACT_PHONE}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="w-4 h-4 text-primary-foreground/50" />
