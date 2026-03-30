@@ -1,6 +1,6 @@
-import { MapPin, Phone, Mail, Instagram, Facebook } from "lucide-react";
+import { MapPin, Phone, Mail, Instagram } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PUBLIC_CONTACT_PHONE } from "@/lib/publicContact";
+import { PUBLIC_CONTACT_PHONE, PUBLIC_WHATSAPP_URL, PUBLIC_INSTAGRAM_URL } from "@/lib/publicContact";
 
 const FooterSection = () => {
   return (
@@ -25,7 +25,7 @@ const FooterSection = () => {
             <div className="space-y-3 font-body text-sm">
               <div className="flex items-center gap-3">
                 <MapPin className="w-4 h-4 text-primary-foreground/50" />
-                <span>123 Rue du Bien-Être, 75000 Paris</span>
+                <span>Choisy, Sainte-Claude 97120 Guadeloupe</span>
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="w-4 h-4 text-primary-foreground/50" />
@@ -33,7 +33,7 @@ const FooterSection = () => {
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="w-4 h-4 text-primary-foreground/50" />
-                <span>contact@harmonie-vitalite.fr</span>
+                <span>quentin.roland97@gmail.com</span>
               </div>
             </div>
           </div>
@@ -44,25 +44,28 @@ const FooterSection = () => {
               Suivez-moi
             </h4>
             <div className="flex gap-4 mb-6">
-              <a href="#" className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-colors">
+              <a href={PUBLIC_INSTAGRAM_URL} className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-colors">
                 <Instagram className="w-4 h-4" />
               </a>
-              <a href="#" className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-colors">
-                <Facebook className="w-4 h-4" />
-              </a>
-            </div>
-            <Button
+
+             <a href={PUBLIC_WHATSAPP_URL}><Button
               size="sm"
               className="rounded-full font-body px-6 bg-sage hover:bg-sage/90 text-primary-foreground"
             >
+               
               💬 WhatsApp
-            </Button>
+            </Button></a>
+            </div>
+            
           </div>
         </div>
 
-        <div className="border-t border-primary-foreground/10 pt-8 text-center">
+        <div className="border-t border-primary-foreground/10 pt-8 text-center flex flex-col gap-2">
           <p className="font-body text-xs text-primary-foreground/40">
-            © 2026 Harmonie & Vitalité. Tous droits réservés.
+            © {new Date().getFullYear()} Harmonie & Vitalité. Tous droits réservés.
+          </p>
+          <p className="font-body text-xs text-primary-foreground/35">
+            Site propulsé par <span className="text-primary-foreground/50">CR Développement</span>.
           </p>
         </div>
       </div>
