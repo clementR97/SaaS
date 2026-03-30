@@ -1,7 +1,7 @@
 import { MapPin, Phone, Mail, Instagram } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PUBLIC_CONTACT_PHONE, PUBLIC_WHATSAPP_URL, PUBLIC_INSTAGRAM_URL } from "@/lib/publicContact";
-
+import byCRImg from "../assets/guadeloupe.png";
 const FooterSection = () => {
   return (
     <footer id="contact" className="py-12 sm:py-16 bg-foreground text-primary-foreground/80">
@@ -64,9 +64,13 @@ const FooterSection = () => {
           <p className="font-body text-xs text-primary-foreground/40">
             © {new Date().getFullYear()} KaruZen Guadeloupe. Tous droits réservés.
           </p>
-          <p className="font-body text-xs text-primary-foreground/35">
-            Site propulsé par <span className="text-primary-foreground/50">CR Développement</span>.
-          </p>
+          <div className="w-full flex justify-center overflow-x-auto [scrollbar-width:thin]">
+            <p className="font-body text-xs text-primary-foreground/35 inline-flex flex-nowrap items-center gap-1.5 whitespace-nowrap px-1">
+              Site propulsé par
+              <img src={byCRImg} alt="" className="w-4 h-4 shrink-0" aria-hidden />
+              <span className="text-primary-foreground/50">CR Développement</span>.
+            </p>
+          </div>
         </div>
       </div>
     </footer>
