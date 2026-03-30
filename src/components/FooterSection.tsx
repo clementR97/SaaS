@@ -62,7 +62,7 @@ const FooterSection = () => {
 
         <div className="border-t border-primary-foreground/10 pt-8 text-center flex flex-col gap-2">
           <p className="font-body text-xs text-primary-foreground/40">
-            © {new Date().getFullYear()} Harmonie & Vitalité. Tous droits réservés.
+            © {new Date().getFullYear()} KaruZen Guadeloupe. Tous droits réservés.
           </p>
           <p className="font-body text-xs text-primary-foreground/35">
             Site propulsé par <span className="text-primary-foreground/50">CR Développement</span>.
