@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Seo } from "@/components/Seo";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,12 @@ const AdminLogin = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+      <Seo
+        title="Connexion administrateur"
+        description="Espace réservé aux administrateurs KaruZen Guadeloupe."
+        path="/admin"
+        noindex
+      />
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="font-display text-2xl">Espace administrateur</CardTitle>

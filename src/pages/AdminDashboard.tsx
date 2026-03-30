@@ -33,6 +33,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ServicesConfigForm from "@/components/ServicesConfigForm";
 import { LogOut, Calendar, Settings, LayoutGrid } from "lucide-react";
+import { Seo } from "@/components/Seo";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -151,6 +152,7 @@ export default function AdminDashboard() {
   if (!authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <Seo title="Tableau de bord" path="/admin/dashboard" noindex />
         <p className="font-body text-muted-foreground">Vérification de la session…</p>
       </div>
     );
@@ -158,6 +160,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-muted/30">
+      <Seo title="Tableau de bord" path="/admin/dashboard" noindex />
       <header className="border-b bg-card sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <h1 className="font-display text-xl font-semibold">Tableau de bord admin</h1>
