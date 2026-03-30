@@ -10,7 +10,7 @@ const FooterSection = () => {
           {/* Brand */}
           <div>
             <h3 className="font-display text-xl sm:text-2xl font-semibold text-primary-foreground mb-3 sm:mb-4">
-              Harmonie & Vitalité
+              KaruZen Guadeloupe
             </h3>
             <p className="font-body text-sm leading-relaxed text-primary-foreground/60">
               Coach sportif, madérothérapie, massages bien-être et naturopathie. Une approche holistique pour votre transformation.
