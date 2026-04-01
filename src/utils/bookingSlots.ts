@@ -1,4 +1,4 @@
-import type { ActivityType, ScheduleSlot } from "@/types/booking";
+import type { ScheduleSlot } from "@/types/booking";
 
 const DEFAULT_SLOT_DURATION = 60;
 
@@ -7,11 +7,11 @@ export type TimeRange = { startHour: number; endHour: number; slotDurationMinute
 export function getTimeRangesForDay(
   schedule: ScheduleSlot[],
   dayOfWeek: number,
-  activityType: ActivityType,
+  prestationName: string,
   defaultSlotDurationMinutes: number = DEFAULT_SLOT_DURATION,
 ): TimeRange[] {
   return schedule
-    .filter((s) => s.day === dayOfWeek && s.type === activityType)
+    .filter((s) => s.day === dayOfWeek && s.type === prestationName)
     .map((s) => ({
       startHour: s.startHour,
       endHour: s.endHour,
@@ -21,22 +21,22 @@ export function getTimeRangesForDay(
 
 export function isDateDisabledForActivity(
   date: Date,
-  activityType: ActivityType,
+  prestationName: string,
   schedule: ScheduleSlot[],
   defaultSlotDurationMinutes?: number,
 ): boolean {
-  return getTimeRangesForDay(schedule, date.getDay(), activityType, defaultSlotDurationMinutes).length === 0;
+  return getTimeRangesForDay(schedule, date.getDay(), prestationName, defaultSlotDurationMinutes).length === 0;
 }
 
 export type TimeSlotOption = { value: string; label: string; minutesFromMidnight: number };
 
 export function getTimeSlotsForDate(
   date: Date,
-  activityType: ActivityType,
+  prestationName: string,
   schedule: ScheduleSlot[],
   defaultSlotDurationMinutes: number = DEFAULT_SLOT_DURATION,
 ): TimeSlotOption[] {
-  const ranges = getTimeRangesForDay(schedule, date.getDay(), activityType, defaultSlotDurationMinutes);
+  const ranges = getTimeRangesForDay(schedule, date.getDay(), prestationName, defaultSlotDurationMinutes);
   const seen = new Set<number>();
   const slots: TimeSlotOption[] = [];
   for (const { startHour, endHour, slotDurationMinutes } of ranges) {

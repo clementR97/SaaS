@@ -4,6 +4,7 @@ import type { BookingConfig } from "@/types/booking";
 import { DEFAULT_BOOKING_CONFIG } from "@/types/booking";
 import { parseServicesCardsFromDb } from "@/types/services";
 import { cardsToPrestations } from "@/utils/syncServicesToPrestations";
+import { migrateBookingConfig } from "@/utils/bookingConfigMigrate";
 
 /** Clé partagée : une seule requête `site_config` pour toute l’app (déduplication + cache). */
 export const BOOKING_CONFIG_QUERY_KEY = ["site_config"] as const;
@@ -18,12 +19,13 @@ const CONFIG_KEYS = [
   "slot_duration_minutes",
   "activity_quota",
   "services_cards",
+  "booking_modal_flags",
 ] as const;
 
 async function fetchBookingConfig(): Promise<BookingConfig> {
-  if (!supabase) return { ...DEFAULT_BOOKING_CONFIG };
+  if (!supabase) return migrateBookingConfig({ ...DEFAULT_BOOKING_CONFIG });
   const { data, error } = await supabase.from("site_config").select("key, value").in("key", [...CONFIG_KEYS]);
-  if (error || !data?.length) return { ...DEFAULT_BOOKING_CONFIG };
+  if (error || !data?.length) return migrateBookingConfig({ ...DEFAULT_BOOKING_CONFIG });
   const next: BookingConfig = { ...DEFAULT_BOOKING_CONFIG };
   const byKey = Object.fromEntries(data.map((r: { key: string; value: unknown }) => [r.key, r.value]));
 
@@ -42,8 +44,11 @@ async function fetchBookingConfig(): Promise<BookingConfig> {
   if (byKey.activity_quota && typeof byKey.activity_quota === "object" && !Array.isArray(byKey.activity_quota)) {
     next.activityQuota = byKey.activity_quota as BookingConfig["activityQuota"];
   }
+  if (byKey.booking_modal_flags && typeof byKey.booking_modal_flags === "object" && !Array.isArray(byKey.booking_modal_flags)) {
+    next.bookingModalFlags = byKey.booking_modal_flags as BookingConfig["bookingModalFlags"];
+  }
 
-  return next;
+  return migrateBookingConfig(next);
 }
 
 export function useBookingConfig(): { config: BookingConfig; loading: boolean } {

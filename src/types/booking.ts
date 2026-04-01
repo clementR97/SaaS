@@ -1,4 +1,11 @@
+/** Ancien modèle : 4 types techniques (migration uniquement). */
 export type ActivityType = "sport" | "naturopathie" | "massage" | "madero";
+
+const LEGACY_ACTIVITY_TYPES: ActivityType[] = ["sport", "naturopathie", "massage", "madero"];
+
+export function isLegacyActivityKey(s: string): s is ActivityType {
+  return LEGACY_ACTIVITY_TYPES.includes(s as ActivityType);
+}
 
 export interface SessionOption {
   name: string;
@@ -12,27 +19,53 @@ export interface PrestationOption {
 
 export interface ScheduleSlot {
   day: number;
-  type: ActivityType;
+  /** Nom exact de la prestation (comme dans « Cartes services » / formulaire). */
+  type: string;
   startHour: number;
   endHour: number;
   /** Durée d'une séance en minutes pour ce créneau (ex: 35). Si absent, utilise slotDurationMinutes global. */
   slotDurationMinutes?: number;
 }
 
-/** Quota max de clients par créneau (même date, même heure) par type d'activité. Ex: sport 2 = 2 RDV possibles à 9h. */
-export type ActivityQuota = Record<ActivityType, number>;
+/** Quota max de RDV au même créneau (même date, même heure), par nom de prestation. */
+export type PrestationQuota = Record<string, number>;
+
+export interface BookingModalFlags {
+  /** Bloc « Me contacter ou plus d'informations » en tête de l’étape prestations. */
+  showContactBlock: boolean;
+  /** Par nom de prestation (titres des cartes services). Absent ou `true` = affiché dans le modal ; `false` = masqué. */
+  prestationModalVisibility?: Record<string, boolean>;
+}
+
+/** Fusionne les préférences modal avec la liste courante des prestations. Nouvelle carte → visible par défaut. */
+export function mergeBookingModalFlags(
+  prestations: PrestationOption[],
+  raw?: Partial<BookingModalFlags> | null,
+): BookingModalFlags {
+  const vis: Record<string, boolean> = {};
+  for (const p of prestations) {
+    vis[p.name] = raw?.prestationModalVisibility?.[p.name] !== false;
+  }
+  return {
+    showContactBlock: raw?.showContactBlock !== false,
+    prestationModalVisibility: vis,
+  };
+}
 
 export interface BookingConfig {
   prestations: PrestationOption[];
   adminSchedule: ScheduleSlot[];
-  prestationActivity: Record<string, ActivityType>;
+  /** Ancien mapping prestation → type technique ; utilisé seulement pour migrer les configs stockées avant le modèle « tout par prestation ». */
+  prestationActivity?: Record<string, ActivityType>;
   slotDurationMinutes: number;
-  /** Quota par type d'activité (nombre max de réservations au même créneau). */
-  activityQuota: ActivityQuota;
+  /** Quota par nom de prestation. */
+  activityQuota: PrestationQuota;
+  bookingModalFlags?: BookingModalFlags;
 }
 
 export const DEFAULT_BOOKING_CONFIG: BookingConfig = {
   slotDurationMinutes: 60,
+  bookingModalFlags: { showContactBlock: true },
   prestations: [
     { name: "Coaching sportif personnalisé", sessions: [{ name: "Séance individuelle 1h", price: "60 €" }, { name: "Pack 5 séances", price: "270 €" }, { name: "Pack 10 séances", price: "500 €" }] },
     { name: "Madérothérapie", sessions: [{ name: "Séance madérothérapie corps", price: "80 €" }, { name: "Séance madérothérapie ventre", price: "50 €" }, { name: "Séance madérothérapie cuisses & fessiers", price: "65 €" }, { name: "Cure 5 séances corps", price: "350 €" }, { name: "Cure 10 séances corps", price: "650 €" }] },
@@ -40,19 +73,18 @@ export const DEFAULT_BOOKING_CONFIG: BookingConfig = {
     { name: "Naturopathie", sessions: [{ name: "Consultation initiale 1h30", price: "80 €" }, { name: "Consultation de suivi 1h", price: "55 €" }] },
   ],
   adminSchedule: [
-    { day: 1, type: "sport", startHour: 9, endHour: 19, slotDurationMinutes: 60 },
-    { day: 2, type: "sport", startHour: 9, endHour: 19, slotDurationMinutes: 60 },
-    { day: 3, type: "naturopathie", startHour: 9, endHour: 19, slotDurationMinutes: 60 },
-    { day: 4, type: "naturopathie", startHour: 9, endHour: 12, slotDurationMinutes: 60 },
-    { day: 4, type: "sport", startHour: 12, endHour: 19, slotDurationMinutes: 60 },
-    { day: 5, type: "massage", startHour: 9, endHour: 19, slotDurationMinutes: 60 },
-    { day: 6, type: "massage", startHour: 14, endHour: 19, slotDurationMinutes: 60 },
+    { day: 1, type: "Coaching sportif personnalisé", startHour: 9, endHour: 19, slotDurationMinutes: 60 },
+    { day: 2, type: "Coaching sportif personnalisé", startHour: 9, endHour: 19, slotDurationMinutes: 60 },
+    { day: 3, type: "Naturopathie", startHour: 9, endHour: 19, slotDurationMinutes: 60 },
+    { day: 4, type: "Naturopathie", startHour: 9, endHour: 12, slotDurationMinutes: 60 },
+    { day: 4, type: "Coaching sportif personnalisé", startHour: 12, endHour: 19, slotDurationMinutes: 60 },
+    { day: 5, type: "Massage bien-être", startHour: 9, endHour: 19, slotDurationMinutes: 60 },
+    { day: 6, type: "Massage bien-être", startHour: 14, endHour: 19, slotDurationMinutes: 60 },
   ],
-  prestationActivity: {
-    "Coaching sportif personnalisé": "sport",
-    "Madérothérapie": "madero",
-    "Massage bien-être": "massage",
-    "Naturopathie": "naturopathie",
+  activityQuota: {
+    "Coaching sportif personnalisé": 1,
+    Madérothérapie: 1,
+    "Massage bien-être": 1,
+    Naturopathie: 1,
   },
-  activityQuota: { sport: 1, naturopathie: 1, massage: 1, madero: 1 },
 };

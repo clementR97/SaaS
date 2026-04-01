@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { useServicesCards, SERVICES_CARDS_QUERY_KEY } from "@/hooks/useServicesCards";
 import { BOOKING_CONFIG_QUERY_KEY } from "@/hooks/useBookingConfig";
 import type { BookingConfig } from "@/types/booking";
-import { cardsToPrestations, mergePrestationActivityFromCards } from "@/utils/syncServicesToPrestations";
+import { cardsToPrestations } from "@/utils/syncServicesToPrestations";
 import {
   DEFAULT_SERVICES_CARDS,
   newServiceCard,
@@ -92,13 +92,11 @@ export default function ServicesConfigForm() {
     try {
       const booking = queryClient.getQueryData<BookingConfig>(BOOKING_CONFIG_QUERY_KEY);
       const prestations = cardsToPrestations(draft);
-      const prestationActivity = mergePrestationActivityFromCards(draft, booking?.prestationActivity ?? {});
 
       const { error } = await supabase.from("site_config").upsert(
         [
           { key: "services_cards", value: draft },
           { key: "prestations", value: prestations },
-          { key: "prestation_activity", value: prestationActivity },
         ],
         { onConflict: "key" },
       );
@@ -107,7 +105,7 @@ export default function ServicesConfigForm() {
       queryClient.setQueryData(BOOKING_CONFIG_QUERY_KEY, (prev: BookingConfig | undefined) => {
         const base = prev ?? booking;
         if (!base) return prev;
-        return { ...base, prestations, prestationActivity };
+        return { ...base, prestations };
       });
       void queryClient.invalidateQueries({ queryKey: SERVICES_CARDS_QUERY_KEY });
       void queryClient.invalidateQueries({ queryKey: BOOKING_CONFIG_QUERY_KEY });
@@ -136,8 +134,8 @@ export default function ServicesConfigForm() {
         <CardHeader>
           <CardTitle className="font-display">Cartes « Services » (page d’accueil)</CardTitle>
           <CardDescription>
-            Ces cartes alimentent aussi la liste des prestations et des séances dans le formulaire « Prendre rendez-vous ». La
-            colonne « Photo » sert à proposer un type d’activité par défaut (modifiable dans Résas & horaires).
+            Ces cartes alimentent aussi la liste des prestations et des séances dans le formulaire « Prendre rendez-vous ».
+            Les noms de prestation (titres) sont utilisés dans l’onglet « Résas & horaires » pour les quotas et l’emploi du temps.
           </CardDescription>
         </CardHeader>
       </Card>

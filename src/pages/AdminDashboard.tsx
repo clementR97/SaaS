@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase, BOOKINGS_LIST_COLUMNS, type BookingRow } from "@/lib/supabase";
 import { useBookingConfig, BOOKING_CONFIG_QUERY_KEY } from "@/hooks/useBookingConfig";
-import type { ActivityType, BookingConfig } from "@/types/booking";
+import { mergeBookingModalFlags, type BookingConfig } from "@/types/booking";
 import { getTimeSlotsForDate, isDateDisabledForActivity } from "@/utils/bookingSlots";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ServicesConfigForm from "@/components/ServicesConfigForm";
 import { LogOut, Calendar, Settings, LayoutGrid } from "lucide-react";
 import { Seo } from "@/components/Seo";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -121,19 +122,21 @@ export default function AdminDashboard() {
     setEditBooking(null);
   };
 
-  const activityType = editBooking ? config.prestationActivity[editBooking.prestation] ?? null : null;
+  const prestationKey = editBooking?.prestation ?? "";
+  const prestationKnown =
+    Boolean(prestationKey) && config.prestations.some((p) => p.name === prestationKey);
   const editDateObj = editDate ? new Date(editDate + "T12:00:00") : null;
   const allowedTimeSlots =
-    editBooking && editDateObj && activityType
-      ? getTimeSlotsForDate(editDateObj, activityType, config.adminSchedule, config.slotDurationMinutes)
+    editBooking && editDateObj && prestationKey
+      ? getTimeSlotsForDate(editDateObj, prestationKey, config.adminSchedule, config.slotDurationMinutes)
       : [];
-  const quotaForEdit = activityType ? (config.activityQuota[activityType] ?? 1) : 1;
+  const quotaForEdit = prestationKey ? (config.activityQuota[prestationKey] ?? 1) : 1;
   const countBySlot = (() => {
     const map = new Map<string, number>();
     for (const b of bookings) {
       if (b.id === editBooking?.id) continue;
-      const at = b.activity_type ?? config.prestationActivity[b.prestation];
-      if (at !== activityType) continue;
+      const slotId = b.activity_type ?? b.prestation;
+      if (slotId !== prestationKey) continue;
       const key = `${b.date_rdv}|${b.heure_rdv}`;
       map.set(key, (map.get(key) ?? 0) + 1);
     }
@@ -141,12 +144,12 @@ export default function AdminDashboard() {
   })();
   const isSlotBooked = (d: string, h: string) => (countBySlot.get(`${d}|${h}`) ?? 0) >= quotaForEdit;
   const isEditDateDisabled = (dateStr: string) => {
-    if (!activityType) return true;
+    if (!prestationKey) return true;
     const d = new Date(dateStr + "T12:00:00");
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (d < today) return true;
-    return isDateDisabledForActivity(d, activityType, config.adminSchedule, config.slotDurationMinutes);
+    return isDateDisabledForActivity(d, prestationKey, config.adminSchedule, config.slotDurationMinutes);
   };
 
   if (!authChecked) {
@@ -269,9 +272,9 @@ export default function AdminDashboard() {
           </DialogHeader>
           {editBooking && (
             <div className="space-y-4 pt-2">
-              {!activityType && (
+              {!prestationKnown && (
                 <p className="text-sm text-amber-600 font-body">
-                  Prestation « {editBooking.prestation} » non associée à un type dans la configuration. Associez-la dans l&apos;onglet Configuration.
+                  Prestation « {editBooking.prestation} » absente des cartes services. Ajoutez-la dans l&apos;onglet Cartes services pour la gérer dans les quotas et l&apos;emploi du temps.
                 </p>
               )}
               <div className="space-y-2">
@@ -283,13 +286,13 @@ export default function AdminDashboard() {
                   onChange={(e) => { setEditDate(e.target.value); setEditHeure(""); }}
                   className="font-body"
                 />
-                {editDate && activityType && isEditDateDisabled(editDate) && (
+                {editDate && prestationKnown && isEditDateDisabled(editDate) && (
                   <p className="text-sm text-destructive font-body">Aucun créneau ce jour pour cette prestation (emploi du temps).</p>
                 )}
               </div>
               <div className="space-y-2">
                 <Label className="font-body">Heure</Label>
-                {editDate && activityType && !isEditDateDisabled(editDate) ? (
+                {editDate && prestationKnown && !isEditDateDisabled(editDate) ? (
                   <Select
                     value={allowedTimeSlots.some((s) => s.value === editHeure) ? editHeure : ""}
                     onValueChange={setEditHeure}
@@ -327,7 +330,7 @@ export default function AdminDashboard() {
                 <Button variant="outline" onClick={() => setEditBooking(null)} className="font-body">Annuler</Button>
                 <Button
                   onClick={saveEditDateHeure}
-                  disabled={saving || !activityType || isEditDateDisabled(editDate) || !allowedTimeSlots.some((s) => s.value === editHeure) || isSlotBooked(editDate, editHeure)}
+                  disabled={saving || !prestationKey || isEditDateDisabled(editDate) || !allowedTimeSlots.some((s) => s.value === editHeure) || isSlotBooked(editDate, editHeure)}
                   className="font-body"
                 >
                   {saving ? "Enregistrement…" : "Enregistrer"}
@@ -344,16 +347,30 @@ export default function AdminDashboard() {
 function ConfigForm({ config, loading }: { config: BookingConfig; loading: boolean }) {
   const queryClient = useQueryClient();
   const [adminSchedule, setAdminSchedule] = useState(config.adminSchedule);
-  const [prestationActivity, setPrestationActivity] = useState(config.prestationActivity);
   const [activityQuota, setActivityQuota] = useState(config.activityQuota);
+  const [modalFlags, setModalFlags] = useState(() =>
+    mergeBookingModalFlags(config.prestations, config.bookingModalFlags),
+  );
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
 
+  const firstPrestationName = config.prestations[0]?.name ?? "";
+
   useEffect(() => {
     setAdminSchedule(config.adminSchedule);
-    setPrestationActivity(config.prestationActivity);
     setActivityQuota(config.activityQuota);
+    setModalFlags(mergeBookingModalFlags(config.prestations, config.bookingModalFlags));
   }, [config]);
+
+  useEffect(() => {
+    setActivityQuota((prev) => {
+      const next: Record<string, number> = {};
+      for (const p of config.prestations) {
+        next[p.name] = prev[p.name] ?? 1;
+      }
+      return next;
+    });
+  }, [config.prestations]);
 
   const save = async () => {
     if (!supabase) return;
@@ -364,8 +381,8 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
         [
           { key: "admin_schedule", value: adminSchedule },
           { key: "slot_duration_minutes", value: 60 },
-          { key: "prestation_activity", value: prestationActivity },
           { key: "activity_quota", value: activityQuota },
+          { key: "booking_modal_flags", value: modalFlags },
         ],
         { onConflict: "key" },
       );
@@ -379,7 +396,8 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
   };
 
   const addScheduleSlot = () => {
-    setAdminSchedule((s) => [...s, { day: 1, type: "sport", startHour: 9, endHour: 18, slotDurationMinutes: 60 }]);
+    const t = firstPrestationName || "Prestation";
+    setAdminSchedule((s) => [...s, { day: 1, type: t, startHour: 9, endHour: 18, slotDurationMinutes: 60 }]);
   };
   const updateScheduleSlot = (index: number, slot: (typeof adminSchedule)[0]) => {
     setAdminSchedule((s) => s.map((x, i) => (i === index ? slot : x)));
@@ -424,7 +442,7 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
         <CardHeader>
           <CardTitle className="font-display">Emploi du temps (créneaux disponibles)</CardTitle>
           <CardDescription>
-            Jour (0=dim, 1=lun… 6=sam). Type: sport, naturopathie, massage, madero. Heures en 24h. Durée = durée d&apos;une séance pour ce créneau (ex: 35 min).
+            Jour (0=dim, 1=lun… 6=sam). <strong>Prestation</strong> : même libellé que dans « Cartes services » (ex. Coaching sportif personnalisé). Heures en 24h. Durée = durée d&apos;une séance pour ce créneau (ex: 35 min). Ajoutez une ligne par prestation et plage horaire.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -439,19 +457,20 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
                 onChange={(e) => updateScheduleSlot(i, { ...slot, day: Number(e.target.value) })}
                 className="font-body w-14 h-8"
               />
-              <span className="font-body text-sm">Type</span>
+              <span className="font-body text-sm">Prestation</span>
               <Select
                 value={slot.type}
-                onValueChange={(v) => updateScheduleSlot(i, { ...slot, type: v as "sport" | "naturopathie" | "massage" | "madero" })}
+                onValueChange={(v) => updateScheduleSlot(i, { ...slot, type: v })}
               >
-                <SelectTrigger className="w-[140px] h-8 font-body text-sm">
-                  <SelectValue />
+                <SelectTrigger className="min-w-[200px] max-w-[280px] h-8 font-body text-sm">
+                  <SelectValue placeholder="Choisir" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sport" className="font-body">sport</SelectItem>
-                  <SelectItem value="naturopathie" className="font-body">naturopathie</SelectItem>
-                  <SelectItem value="massage" className="font-body">massage</SelectItem>
-                  <SelectItem value="madero" className="font-body">madero</SelectItem>
+                  {config.prestations.map((p) => (
+                    <SelectItem key={p.name} value={p.name} className="font-body">
+                      {p.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Input
@@ -495,21 +514,25 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-display">Quota par type d&apos;activité</CardTitle>
+          <CardTitle className="font-display">Quota par prestation</CardTitle>
           <CardDescription>
-            Nombre max de clients qui peuvent réserver le même créneau (même date, même heure). Ex: 2 = deux RDV possibles à 9h pour ce type.
+            Nombre max de clients qui peuvent réserver le même créneau (même date, même heure) pour cette prestation. Ex. : 2 = deux RDV à 9h pour le coaching. Une nouvelle prestation ajoutée dans « Cartes services » apparaît ici après enregistrement des cartes (quota par défaut 1).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
-          {(["sport", "naturopathie", "massage", "madero"] as const).map((type) => (
-            <div key={type} className="flex gap-2 items-center">
-              <span className="font-body text-sm w-28 capitalize">{type}</span>
+          {config.prestations.map((p) => (
+            <div key={p.name} className="flex flex-wrap gap-2 items-center">
+              <span className="font-body text-sm flex-1 min-w-[12rem] truncate" title={p.name}>
+                {p.name}
+              </span>
               <Input
                 type="number"
                 min={1}
                 max={20}
-                value={activityQuota[type] ?? 1}
-                onChange={(e) => setActivityQuota((q) => ({ ...q, [type]: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                value={activityQuota[p.name] ?? 1}
+                onChange={(e) =>
+                  setActivityQuota((q) => ({ ...q, [p.name]: Math.max(1, parseInt(e.target.value, 10) || 1) }))
+                }
                 className="font-body w-20 h-8"
               />
               <span className="font-body text-muted-foreground text-sm">client(s) max / créneau</span>
@@ -520,36 +543,57 @@ function ConfigForm({ config, loading }: { config: BookingConfig; loading: boole
 
       <Card>
         <CardHeader>
-          <CardTitle className="font-display">Lien prestation → type d'activité</CardTitle>
+          <CardTitle className="font-display">Présentation du formulaire (côté client)</CardTitle>
           <CardDescription>
-            Chaque prestation doit être associée à un type (sport, naturopathie, massage, madero) pour l'emploi du temps.
+            Contrôle de l’affichage dans la fenêtre « Prendre rendez-vous » sur le site public.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
-          {Object.keys(prestationActivity).length === 0 && config.prestations.length > 0 && (
-            <p className="text-sm text-muted-foreground font-body">
-              Ajoutez des correspondances. Les noms doivent correspondre exactement aux prestations listées ci-dessus.
-            </p>
-          )}
-          {config.prestations.map((p) => (
-            <div key={p.name} className="flex gap-2 items-center">
-              <span className="font-body text-sm w-48 truncate">{p.name}</span>
-              <Select
-                value={prestationActivity[p.name] ?? "sport"}
-                onValueChange={(v) => setPrestationActivity((prev) => ({ ...prev, [p.name]: v as ActivityType }))}
-              >
-                <SelectTrigger className="w-[140px] h-8 font-body text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sport" className="font-body">sport</SelectItem>
-                  <SelectItem value="naturopathie" className="font-body">naturopathie</SelectItem>
-                  <SelectItem value="massage" className="font-body">massage</SelectItem>
-                  <SelectItem value="madero" className="font-body">madero</SelectItem>
-                </SelectContent>
-              </Select>
+        <CardContent className="space-y-4">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="show-contact-modal"
+              checked={modalFlags.showContactBlock}
+              onCheckedChange={(v) => setModalFlags((m) => ({ ...m, showContactBlock: v === true }))}
+            />
+            <div className="grid gap-1">
+              <Label htmlFor="show-contact-modal" className="font-body text-sm font-medium cursor-pointer">
+                Afficher « Me contacter ou plus d&apos;informations » (téléphone)
+              </Label>
+              <p className="font-body text-xs text-muted-foreground">
+                Si décoché, ce bloc n’apparaît pas sur la première étape du formulaire.
+              </p>
             </div>
-          ))}
+          </div>
+          <div className="space-y-3 pt-2 border-t border-border">
+            <p className="font-body text-sm font-medium text-foreground">Prestations affichées dans le modal</p>
+            <p className="font-body text-xs text-muted-foreground">
+              Une case par prestation (noms des cartes services). Décochez pour masquer une prestation dans « Prendre rendez-vous » sans la retirer du site. Les nouvelles cartes sont visibles par défaut.
+            </p>
+            <div className="space-y-3">
+              {config.prestations.map((p, i) => (
+                <div key={p.name} className="flex items-start gap-3">
+                  <Checkbox
+                    id={`modal-prestation-${i}`}
+                    checked={modalFlags.prestationModalVisibility?.[p.name] !== false}
+                    onCheckedChange={(v) =>
+                      setModalFlags((m) => ({
+                        ...m,
+                        prestationModalVisibility: {
+                          ...m.prestationModalVisibility,
+                          [p.name]: v === true,
+                        },
+                      }))
+                    }
+                  />
+                  <div className="grid gap-0.5 min-w-0">
+                    <Label htmlFor={`modal-prestation-${i}`} className="font-body text-sm font-medium cursor-pointer leading-snug">
+                      {p.name}
+                    </Label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </CardContent>
       </Card>
 

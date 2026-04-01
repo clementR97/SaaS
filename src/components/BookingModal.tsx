@@ -9,7 +9,6 @@ import { Check, ChevronRight, Phone } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { PUBLIC_CONTACT_PHONE, publicContactTelHref } from "@/lib/publicContact";
 import { useBookingConfig } from "@/hooks/useBookingConfig";
-import type { ActivityType } from "@/types/booking";
 import {
   getTimeSlotsForDate,
   isDateDisabledForActivity,
@@ -68,21 +67,21 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
   };
 
   const prestations = config.prestations;
+  const vis = config.bookingModalFlags?.prestationModalVisibility;
+  const visiblePrestations = prestations.filter((p) => vis?.[p.name] !== false);
   const currentPrestation = prestations.find((p) => p.name === selectedPrestation);
-  const activityType: ActivityType | null =
-    selectedPrestation && config.prestationActivity[selectedPrestation]
-      ? config.prestationActivity[selectedPrestation]
-      : null;
+  const prestationKey = selectedPrestation ?? "";
+  const showContactBlock = config.bookingModalFlags?.showContactBlock !== false;
 
   const slotKey = (date: Date, timeValue: string) => `${date.toISOString().slice(0, 10)}|${timeValue}`;
-  const quota = activityType ? (config.activityQuota[activityType] ?? 1) : 1;
+  const quota = prestationKey ? (config.activityQuota[prestationKey] ?? 1) : 1;
   const getSlotCount = (date: Date, timeValue: string) => slotCounts.get(slotKey(date, timeValue)) ?? 0;
   const isSlotBooked = (date: Date, timeValue: string) => getSlotCount(date, timeValue) >= quota;
 
   useEffect(() => {
-    if (step !== 2 || !open || !supabase || !activityType) return;
+    if (step !== 2 || !open || !supabase || !prestationKey) return;
     let cancelled = false;
-    void supabase.rpc("get_slot_counts", { p_activity_type: activityType }).then(({ data, error }) => {
+    void supabase.rpc("get_slot_counts", { p_activity_type: prestationKey }).then(({ data, error }) => {
       if (cancelled || error) return;
       const map = new Map<string, number>();
       (data ?? []).forEach((row: { date_rdv: string; heure_rdv: string; count: number }) => {
@@ -93,7 +92,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
     return () => {
       cancelled = true;
     };
-  }, [step, open, activityType]);
+  }, [step, open, prestationKey]);
 
   const isFormValid =
     form.nom.trim().length >= 2 &&
@@ -126,7 +125,7 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
           mode_paiement: form.paiement,
           prestation: selectedPrestation,
           session: selectedSession,
-          activity_type: activityType ?? undefined,
+          activity_type: prestationKey || undefined,
         });
         if (error) throw error;
         setSlotCounts((prev) => new Map(prev).set(slotKey(selectedDate, selectedTime), getSlotCount(selectedDate, selectedTime) + 1));
@@ -172,48 +171,59 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                 transition={{ duration: 0.3 }}
                 className="flex flex-col gap-3 mt-4"
               >
-                <p className="font-body text-sm text-muted-foreground mb-2">
-                  Sélectionnez la prestation pour laquelle vous souhaitez réserver :
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setContactInfoOpen((v) => !v)}
-                  aria-expanded={contactInfoOpen}
-                  className="text-left p-4 rounded-xl border transition-all font-body text-sm border-border hover:border-primary hover:bg-primary/5 w-full"
-                >
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-foreground font-medium">
-                      Me contacter ou plus d&apos;informations
-                    </span>
-                    <ChevronRight
-                      className={`w-4 h-4 shrink-0 text-muted-foreground transition-transform ${contactInfoOpen ? "rotate-90" : ""}`}
-                    />
-                  </span>
-                </button>
-                <AnimatePresence initial={false}>
-                  {contactInfoOpen && (
-                    <motion.div
-                      key="contact-phone"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="overflow-hidden rounded-xl border border-primary/25 bg-primary/5 px-4 py-3"
+                {visiblePrestations.length > 0 && (
+                  <p className="font-body text-sm text-muted-foreground mb-2">
+                    Sélectionnez la prestation pour laquelle vous souhaitez réserver :
+                  </p>
+                )}
+                {showContactBlock && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setContactInfoOpen((v) => !v)}
+                      aria-expanded={contactInfoOpen}
+                      className="text-left p-4 rounded-xl border transition-all font-body text-sm border-border hover:border-primary hover:bg-primary/5 w-full"
                     >
-                      <p className="font-body text-xs text-muted-foreground mb-2">
-                        Appelez-moi pour toute question avant réservation :
-                      </p>
-                      <a
-                        href={publicContactTelHref()}
-                        className="inline-flex items-center gap-2 font-body text-base font-semibold text-primary hover:underline"
-                      >
-                        <Phone className="w-5 h-5 shrink-0" aria-hidden />
-                        {PUBLIC_CONTACT_PHONE}
-                      </a>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-                {prestations.map((p) => (
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-foreground font-medium">
+                          Me contacter ou plus d&apos;informations
+                        </span>
+                        <ChevronRight
+                          className={`w-4 h-4 shrink-0 text-muted-foreground transition-transform ${contactInfoOpen ? "rotate-90" : ""}`}
+                        />
+                      </span>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {contactInfoOpen && (
+                        <motion.div
+                          key="contact-phone"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden rounded-xl border border-primary/25 bg-primary/5 px-4 py-3"
+                        >
+                          <p className="font-body text-xs text-muted-foreground mb-2">
+                            Appelez-moi pour toute question avant réservation :
+                          </p>
+                          <a
+                            href={publicContactTelHref()}
+                            className="inline-flex items-center gap-2 font-body text-base font-semibold text-primary hover:underline"
+                          >
+                            <Phone className="w-5 h-5 shrink-0" aria-hidden />
+                            {PUBLIC_CONTACT_PHONE}
+                          </a>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </>
+                )}
+                {visiblePrestations.length === 0 && !showContactBlock && (
+                  <p className="font-body text-sm text-muted-foreground">
+                    Aucune prestation n&apos;est disponible à la réservation en ligne pour le moment.
+                  </p>
+                )}
+                {visiblePrestations.map((p) => (
                   <button
                     key={p.name}
                     type="button"
@@ -299,8 +309,8 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                           const today = new Date();
                           today.setHours(0, 0, 0, 0);
                           if (date < today) return true;
-                          if (activityType == null) return false;
-                          return isDateDisabledForActivity(date, activityType, config.adminSchedule, config.slotDurationMinutes);
+                          if (!prestationKey) return false;
+                          return isDateDisabledForActivity(date, prestationKey, config.adminSchedule, config.slotDurationMinutes);
                         }}
                         className="rounded-xl border border-border bg-card shrink-0"
                       />
@@ -310,9 +320,9 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                     <Label htmlFor="booking-time-mobile" className="font-body text-sm font-medium">
                       Heure
                     </Label>
-                    {selectedDate && activityType ? (
+                    {selectedDate && prestationKey ? (
                       (() => {
-                        const slots = getTimeSlotsForDate(selectedDate, activityType, config.adminSchedule, config.slotDurationMinutes);
+                        const slots = getTimeSlotsForDate(selectedDate, prestationKey, config.adminSchedule, config.slotDurationMinutes);
                         const today = new Date();
                         const isToday = selectedDate.toDateString() === today.toDateString();
                         const nowMin = today.getHours() * 60 + today.getMinutes();
@@ -366,8 +376,8 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
                         if (date < today) return true;
-                        if (activityType == null) return false;
-                        return isDateDisabledForActivity(date, activityType, config.adminSchedule, config.slotDurationMinutes);
+                        if (!prestationKey) return false;
+                        return isDateDisabledForActivity(date, prestationKey, config.adminSchedule, config.slotDurationMinutes);
                       }}
                       className="rounded-xl border border-border bg-card shrink-0"
                     />
@@ -376,8 +386,8 @@ const BookingModal = ({ open, onOpenChange }: BookingModalProps) => {
                     <Label className="font-body text-sm font-medium text-foreground mb-3 block">Heure</Label>
                     {selectedDate ? (
                       (() => {
-                        const slots = activityType
-                          ? getTimeSlotsForDate(selectedDate, activityType, config.adminSchedule, config.slotDurationMinutes)
+                        const slots = prestationKey
+                          ? getTimeSlotsForDate(selectedDate, prestationKey, config.adminSchedule, config.slotDurationMinutes)
                           : [];
                         const today = new Date();
                         const isToday = selectedDate.toDateString() === today.toDateString();
