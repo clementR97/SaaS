@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ServicesConfigForm from "@/components/ServicesConfigForm";
-import { LogOut, Calendar, Settings, LayoutGrid } from "lucide-react";
+import { LogOut, Calendar, Settings, LayoutGrid, KeyRound } from "lucide-react";
 import { Seo } from "@/components/Seo";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -175,7 +175,7 @@ export default function AdminDashboard() {
 
       <main className="container mx-auto px-4 py-6">
         <Tabs defaultValue="reservations" className="space-y-4">
-          <TabsList className="grid w-full max-w-2xl grid-cols-3 gap-1 h-auto p-1">
+          <TabsList className="grid w-full max-w-3xl grid-cols-2 sm:grid-cols-4 gap-1 h-auto p-1">
             <TabsTrigger value="reservations" className="gap-1.5 font-body text-xs sm:text-sm px-2 py-2">
               <Calendar className="h-4 w-4 shrink-0" /> <span className="truncate">Réservations</span>
             </TabsTrigger>
@@ -184,6 +184,9 @@ export default function AdminDashboard() {
             </TabsTrigger>
             <TabsTrigger value="services" className="gap-1.5 font-body text-xs sm:text-sm px-2 py-2">
               <LayoutGrid className="h-4 w-4 shrink-0" /> <span className="truncate">Cartes services</span>
+            </TabsTrigger>
+            <TabsTrigger value="account" className="gap-1.5 font-body text-xs sm:text-sm px-2 py-2">
+              <KeyRound className="h-4 w-4 shrink-0" /> <span className="truncate">Compte</span>
             </TabsTrigger>
           </TabsList>
 
@@ -261,6 +264,10 @@ export default function AdminDashboard() {
 
           <TabsContent value="services">
             <ServicesConfigForm />
+          </TabsContent>
+
+          <TabsContent value="account">
+            <AdminPasswordCard />
           </TabsContent>
         </Tabs>
       </main>
@@ -341,6 +348,134 @@ export default function AdminDashboard() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+const MIN_ADMIN_PASSWORD_LEN = 6;
+
+function AdminPasswordCard() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [message, setMessage] = useState<{ type: "ok" | "error"; text: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    if (!supabase) {
+      setMessage({ type: "error", text: "Supabase n'est pas configuré." });
+      return;
+    }
+    if (newPassword.length < MIN_ADMIN_PASSWORD_LEN) {
+      setMessage({
+        type: "error",
+        text: `Le nouveau mot de passe doit contenir au moins ${MIN_ADMIN_PASSWORD_LEN} caractères.`,
+      });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage({ type: "error", text: "La confirmation ne correspond pas au nouveau mot de passe." });
+      return;
+    }
+    setSaving(true);
+    const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser();
+    if (userErr || !user?.email) {
+      setSaving(false);
+      setMessage({ type: "error", text: "Impossible de lire le compte connecté." });
+      return;
+    }
+    const { error: signErr } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword,
+    });
+    if (signErr) {
+      setSaving(false);
+      setMessage({ type: "error", text: "Mot de passe actuel incorrect." });
+      return;
+    }
+    const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
+    setSaving(false);
+    if (updateErr) {
+      setMessage({ type: "error", text: updateErr.message ?? "Mise à jour impossible." });
+      return;
+    }
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setMessage({ type: "ok", text: "Mot de passe mis à jour." });
+  };
+
+  return (
+    <Card className="max-w-md">
+      <CardHeader>
+        <CardTitle className="font-display">Mot de passe</CardTitle>
+        <CardDescription>
+          Modifiez votre mot de passe de connexion à l&apos;administration. Vous devez saisir l&apos;ancien mot de passe pour confirmer.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={(e) => void submit(e)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="admin-current-pw" className="font-body">
+              Mot de passe actuel
+            </Label>
+            <Input
+              id="admin-current-pw"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+              className="font-body"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="admin-new-pw" className="font-body">
+              Nouveau mot de passe
+            </Label>
+            <Input
+              id="admin-new-pw"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={MIN_ADMIN_PASSWORD_LEN}
+              className="font-body"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="admin-confirm-pw" className="font-body">
+              Confirmer le nouveau mot de passe
+            </Label>
+            <Input
+              id="admin-confirm-pw"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={MIN_ADMIN_PASSWORD_LEN}
+              className="font-body"
+              required
+            />
+          </div>
+          {message && (
+            <p
+              className={`text-sm font-body ${message.type === "ok" ? "text-green-600" : "text-destructive"}`}
+            >
+              {message.text}
+            </p>
+          )}
+          <Button type="submit" className="font-body" disabled={saving}>
+            {saving ? "Enregistrement…" : "Enregistrer le nouveau mot de passe"}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
 
