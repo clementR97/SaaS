@@ -3,8 +3,15 @@ import { motion } from "framer-motion";
 import heroImg from "@/assets/hero-wellness.jpg";
 import { Button } from "@/components/ui/button";
 import BookingModal from "@/components/BookingModal";
+
+const scrollToServices = () => {
+  document.getElementById("services")?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
 const HeroSection = () => {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  
+  
   return (
     <>
     <section className="relative min-h-screen flex items-center overflow-hidden">
@@ -40,7 +47,13 @@ const HeroSection = () => {
             <Button variant="default" size="lg" className="text-sm sm:text-base px-6 sm:px-8 py-5 sm:py-6 rounded-full font-body font-medium w-full sm:w-auto" onClick={() =>setIsBookingModalOpen(true)}>
               Prendre rendez-vous
             </Button>
-            <Button variant="outline" size="lg" className="text-sm sm:text-base px-6 sm:px-8 py-5 sm:py-6 rounded-full font-body font-medium border-sand/40 text-warm-black hover:bg-warm-white/10 w-full sm:w-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="text-sm sm:text-base px-6 sm:px-8 py-5 sm:py-6 rounded-full font-body font-medium border-sand/40 text-warm-black hover:bg-warm-white/10 w-full sm:w-auto"
+              onClick={scrollToServices}
+            >
               Découvrir mes services
             </Button>
           </div>
