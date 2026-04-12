@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- SPA : une seule route publique (/, voir App.tsx). /admin exclu du référencement. -->
   <url>
-    <loc>https://www.karuzen-guadeloupe.fr/</loc>
+    <loc>https://karuzen-guadeloupe.fr/</loc>
     <lastmod>2026-02-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>

@@ -1,4 +1,4 @@
-Sitemap: https://www.karuzen-guadeloupe.fr/sitemap.xml
+Sitemap: https://karuzen-guadeloupe.fr/sitemap.xml
 
 User-agent: *
 Allow: /
