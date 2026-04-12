@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manuel — ID calendrier Google (Calendar ID)</title>
+  <style>
+    :root {
+      --text: #1a1a1a;
+      --muted: #444;
+      --border: #ccc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.5;
+      color: var(--text);
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 3rem;
+      font-size: 11pt;
+    }
+    h1 {
+      font-size: 1.5rem;
+      border-bottom: 2px solid var(--border);
+      padding-bottom: 0.5rem;
+      margin-top: 0;
+    }
+    h2 { font-size: 1.15rem; margin-top: 1.75rem; }
+    h3 { font-size: 1rem; margin-top: 1.25rem; }
+    p, li { color: var(--muted); }
+    .meta { font-size: 0.9rem; color: #666; margin-bottom: 2rem; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.6rem; text-align: left; }
+    th { background: #f5f5f5; }
+    code { background: #f0f0f0; padding: 0.1em 0.35em; border-radius: 3px; font-size: 0.9em; }
+    .print-hint {
+      background: #e8f4e8;
+      border: 1px solid #9c9;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+    }
+    @media print {
+      body { padding: 0; max-width: 100%; }
+      .print-hint { border: 1px dashed #999; background: #fff; }
+      a[href]::after { content: " (" attr(href) ")"; font-size: 0.85em; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <p class="print-hint no-print">
+    <strong>Pour obtenir un PDF :</strong> ouvrez ce fichier dans Chrome ou Edge → menu <strong>Fichier</strong> → 
+    <strong>Imprimer</strong> → destination <strong>Enregistrer au format PDF</strong> → Enregistrer.
+  </p>
+
+  <h1>Manuel — Trouver l’ID d’un calendrier Google (Calendar ID)</h1>
+  <p class="meta"><strong>KaruZen</strong> — synchronisation Supabase / Google Calendar · <code>CALENDAR_ID</code></p>
+
+  <h2>1. À quoi sert le Calendar ID ?</h2>
+  <ul>
+    <li>Chaque agenda Google (principal, professionnel, « RDV site », etc.) possède un <strong>identifiant unique</strong>.</li>
+    <li>Les applications utilisent cet ID pour savoir <strong>dans quel agenda</strong> créer ou modifier les événements.</li>
+    <li>Ce n’est pas un mot de passe : c’est un identifiant technique, visible dans les paramètres du calendrier.</li>
+  </ul>
+
+  <h2>2. Avant de commencer</h2>
+  <ul>
+    <li>Connecte-toi avec le <strong>compte Google qui possède</strong> l’agenda concerné.</li>
+    <li>Ouvre : <a href="https://calendar.google.com">https://calendar.google.com</a></li>
+  </ul>
+
+  <h2>3. Méthode recommandée : Paramètres du calendrier</h2>
+  <h3>Étape 1 — Liste des agendas</h3>
+  <ol>
+    <li>À <strong>gauche</strong>, sous le mois, repère la liste <strong>&laquo; Mes agendas &raquo;</strong> (My calendars).</li>
+    <li>Choisis l’agenda dont tu veux l’ID (ex. ton nom, ou un agenda dédié « Rendez-vous »).</li>
+  </ol>
+  <h3>Étape 2 — Menu des paramètres</h3>
+  <ol>
+    <li><strong>Survole</strong> le nom de l’agenda avec la souris.</li>
+    <li>Clique sur les <strong>trois points ⋮</strong> à droite du nom.</li>
+    <li>Choisis <strong>&laquo; Paramètres et partage &raquo;</strong> (Settings and sharing).</li>
+  </ol>
+  <h3>Étape 3 — Lire le Calendar ID</h3>
+  <ol>
+    <li>Descends jusqu’à la section <strong>&laquo; Intégrer le calendrier &raquo;</strong> (Integrate calendar).</li>
+    <li>Dans le champ <strong>&laquo; ID du calendrier &raquo;</strong> (Calendar ID), sélectionne tout le texte et <strong>copie</strong> (Ctrl+C / Cmd+C).</li>
+    <li>Colle cette valeur dans le secret Supabase <strong>CALENDAR_ID</strong>, sans espace avant ou après.</li>
+  </ol>
+
+  <h2>4. Exemples de forme d’ID</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Type d’agenda</th>
+        <th>Exemple d’ID</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Agenda principal</td>
+        <td>Souvent ton <strong>adresse e-mail Gmail</strong> complète (ex. <code>prenom.nom@gmail.com</code>)</td>
+      </tr>
+      <tr>
+        <td>Cas particulier</td>
+        <td>Parfois le mot <code>primary</code> si l’outil ou la doc le demande explicitement</td>
+      </tr>
+      <tr>
+        <td>Agenda secondaire</td>
+        <td>Souvent une chaîne du type <code>xxxx@group.calendar.google.com</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>5. Partage avec le compte de service (rappel)</h2>
+  <p>Pour que la synchronisation fonctionne, le même agenda doit être <strong>partagé</strong> avec l’e-mail du compte de service Google Cloud (se terminant par <code>@….iam.gserviceaccount.com</code>), avec le droit <strong>Modifier les événements</strong>. Détail : fichier <code>docs/GOOGLE_CALENDAR.md</code> dans le projet.</p>
+
+  <h2>6. Problèmes fréquents</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Problème</th>
+        <th>Piste</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Section « Intégrer le calendrier » introuvable</td>
+        <td>Descends plus bas dans la page Paramètres ; le libellé peut varier selon la langue.</td>
+      </tr>
+      <tr>
+        <td>Plusieurs agendas</td>
+        <td>Chaque calendrier a son propre ID : répète les étapes pour celui utilisé pour les RDV.</td>
+      </tr>
+      <tr>
+        <td>Mauvais compte</td>
+        <td>Vérifie l’avatar / compte en haut à droite sur calendar.google.com.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top: 2rem; font-size: 0.9rem; color: #666; border-top: 1px solid var(--border); padding-top: 1rem;">
+    Document d’aide pour la configuration <code>CALENDAR_ID</code> — KaruZen Guadeloupe.
+  </p>
+</body>
+</html>

@@ -1,5 +1,4 @@
-# Renseignez l’URL complète du sitemap après déploiement, ex. :
-# Sitemap: https://www.votredomaine.fr/sitemap.xml
+Sitemap: https://www.karuzen-guadeloupe.fr/sitemap.xml
 
 User-agent: *
 Allow: /
