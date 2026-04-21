@@ -236,7 +236,7 @@ export default function ServicesConfigForm() {
                     Liste nom + prix (une colonne)
                   </SelectItem>
                   <SelectItem value="madero" className="font-body">
-                    Madéro : Zone 1 / Zone 2
+                    Madero : 1 Zone / 2 Zones
                   </SelectItem>
                   <SelectItem value="zen" className="font-body">
                     Packs Zen (prix + liste au clic)
@@ -389,7 +389,7 @@ export default function ServicesConfigForm() {
                     />
                     <Input
                       className="font-body w-24"
-                      placeholder="Zone 1"
+                      placeholder="1 Zone"
                       value={row.zone1}
                       onChange={(e) =>
                         setDraft((prev) =>
@@ -405,7 +405,7 @@ export default function ServicesConfigForm() {
                     />
                     <Input
                       className="font-body w-24"
-                      placeholder="Zone 2"
+                      placeholder="2 Zones"
                       value={row.zone2}
                       onChange={(e) =>
                         setDraft((prev) =>

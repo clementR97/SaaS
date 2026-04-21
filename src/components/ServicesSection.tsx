@@ -182,10 +182,10 @@ const ServicesSection = () => {
                                   </span>
                                   <div className="flex flex-col items-start sm:items-end gap-0.5 shrink-0">
                                     <span className="font-display text-base sm:text-lg md:text-xl font-semibold text-primary">
-                                      Zone 1 : {session.zone1}
+                                      1 Zone : {session.zone1}
                                     </span>
                                     <span className="font-display text-sm sm:text-base md:text-lg font-semibold text-primary/80">
-                                      Zone 2 : {session.zone2}
+                                      2 Zones : {session.zone2}
                                     </span>
                                   </div>
                                 </motion.div>

@@ -30,7 +30,7 @@ export function cardsToPrestations(cards: ServiceCardConfig[]): PrestationOption
       case "madero":
         sessions = card.sessions.items.map((x) => ({
           name: x.name,
-          price: `Z1 ${x.zone1} · Z2 ${x.zone2}`,
+          price: `1 Zone ${x.zone1} · 2 Zones ${x.zone2}`,
         }));
         break;
       case "zen":
